@@ -14,7 +14,7 @@
 
 ```
 uv sync
-uv run pytest
+uv run pytest          # 契約・application・REST・依存の向き（import-linter）
 uv run ruff check
 uv run ruff format --check
 ```
@@ -30,3 +30,11 @@ uv run python scripts/generate_contracts.py
 ## アプリの設定
 
 対象のアプリごとに、部品の辞書と変換の規則（部品の名前 → キー・座標・読み取りの場所）を `src/qata_server/apps/<アプリ>.json` に書きます（[docs/decisions.md](docs/decisions.md) の S3）。AI と web に見せる部品の辞書は、ここから作ります。
+
+## 立ち上げる
+
+```
+uv run qata-server
+```
+
+`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは環境変数 `QATA_HOST`・`QATA_PORT`・`QATA_RUNNER_URL`・`QATA_DATA_DIR`（保存先、既定は `./data`）を使います。

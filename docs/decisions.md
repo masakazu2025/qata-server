@@ -4,6 +4,22 @@
 
 ---
 
+## S6. REST の入口と、runner への HTTP
+
+- 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
+- 入口は `rest.py` の `create_app(service)`。組み立ては `main.py` で、設定は環境変数（`QATA_DATA_DIR`・`QATA_RUNNER_URL`・`QATA_HOST`・`QATA_PORT`）。起動は `uv run qata-server`。既定のポートは server が 8000、runner が 8001。
+- テストケースの本文は FastAPI で検証しない（`Request` で受ける）。形式の誤りも validation_result で返す契約のため。JSON として読めない本文は、契約に合わない値として扱う（`schema` の問題で返す）。
+- 引数はどれも文字列で受け、ID の形は Store が見る（S4）。FastAPI が自分で足す 422 は起きないので、OpenAPI から外す。
+- 道がないときなど、FastAPI が出す HTTP のエラーも、契約の `error_response` の形で返す（`not_found`、それ以外は `http_<コード>`）。
+- FastAPI は自分の `ValidationError`（loc・msg）で、契約の同じ名前の型を OpenAPI の中で上書きする。そのため OpenAPI を出すときに、契約の側に戻す。
+- 「OpenAPI が openapi.yaml と合う」は、二つで確かめる。
+  - 道ごとの operationId・引数（名前・場所・必須）・本文・応答のコードと media type が同じ。
+  - openapi.yaml が契約を指すところで、FastAPI の OpenAPI がその契約から生成した型を指し、型の中身が生成した型の JSON Schema と同じ。生成した型が契約と合うことは、契約の検査（S1）で確かめている。
+- 実際の応答が契約に通ることも、feature で確かめる。
+- runner への道具は `runner_http.py` の `HttpRunner`（httpx）。届かない・HTTP のエラーは `RunnerUnavailable`（502）。JSON でない本文はそのまま返し、application 層が `invalid_runner_result` と判定する。待つ時間は 300 秒（実行が終わるまで待って返すため）。
+- 依存の向きは import-linter の layers で、`main` → `rest`・`runner_http` → `application` → `contracts`。検査は pytest の feature から動かし、関門を `uv run pytest` に寄せる。
+- テストの偽の runner は `tests/support.py` に移し、application と REST のテストで使い回す。
+
 ## S5. 実行のときの判定
 
 - 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
