@@ -7,10 +7,13 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.162.2",
+    "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "pydantic>=2.14.3",
     "referencing>=0.37.0",
     "rfc3339-validator>=0.1.4",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]
@@ -29,7 +32,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["scripts"]
+pythonpath = ["scripts", "tests"]
 addopts = "--strict-markers"
 
 [tool.ruff]
@@ -38,3 +41,19 @@ extend-exclude = ["src/qata_server/contracts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+
+[project.scripts]
+qata-server = "qata_server.main:serve"
+
+[tool.importlinter]
+root_package = "qata_server"
+
+[[tool.importlinter.contracts]]
+name = "依存は上から下へ：組み立て → 入口・runner への道具 → application → 契約の型"
+type = "layers"
+layers = [
+    "qata_server.main",
+    "qata_server.rest | qata_server.runner_http",
+    "qata_server.application",
+    "qata_server.contracts",
+]
