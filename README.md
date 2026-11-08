@@ -26,3 +26,7 @@ uv run ruff format --check
 ```
 uv run python scripts/generate_contracts.py
 ```
+
+## アプリの設定
+
+対象のアプリごとに、部品の辞書と変換の規則（部品の名前 → キー・座標・読み取りの場所）を `src/qata_server/apps/<アプリ>.json` に書きます（[docs/decisions.md](docs/decisions.md) の S3）。AI と web に見せる部品の辞書は、ここから作ります。

@@ -6,12 +6,11 @@
 
 ## 次にやること（優先順）
 
-1. **検証・登録・実行を application 層に作り、REST で出す**　担当：AI
-   - 検証は二段：形式（JSON Schema）と、部品の辞書との照合。
-   - 変換の枠（部品の名前 → キー・座標・AutomationId、読んだ文字から値を取り出す規則）を置く（親の D14・D17）。
-   - runner は偽物（決まった結果を返す）をテストの中に置く。
+1. **application 層を REST で出す**　担当：AI
    - FastAPI が出す OpenAPI が親の `openapi.yaml` と合うことをテストで確かめる。
+   - 本物の runner に命令を送る道具（HTTP）を置く。
    - 層ができるので、import-linter で依存の向きを関門にする。
+   - application 層の例外（`NotFound`・`Conflict`・`RunnerUnavailable`）を、openapi.yaml の 404・409・502 に変える（S5）。
 2. **MCP の道具を出す**　担当：AI
    - 出す道具が親の `mcp-tools.json` と合うことをテストで確かめる。
 
