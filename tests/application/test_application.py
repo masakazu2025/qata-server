@@ -227,7 +227,7 @@ def runner_text(runner: FakeRunner, text: str) -> None:
     runner.text = text
 
 
-@given(parsers.parse("runner は {number:d} 番目のステップで止まる"))
+@given(parsers.parse("runner は命令の {number:d} 番目のステップで止まる"))
 def runner_aborts(runner: FakeRunner, number: int) -> None:
     runner.abort_at = number - 1
 
@@ -297,11 +297,18 @@ def command_matches_example(runner: FakeRunner, file_name: str) -> None:
     assert command == {**load_example(file_name), "run_id": "-"}
 
 
-@then("どのステップにもスクショがあり、runner が撮った PNG が取れる")
+@then("どのステップにもスクショがあり、runner がそのステップで撮った PNG が取れる")
 def screenshots_saved(service: Service, ctx) -> None:
+    prepare = len(load_apps()["calculator"].prepare)
     for step in ctx["run"].steps:
         assert step.screenshot_id is not None
-        assert service.get_screenshot(step.screenshot_id.root) == png_for(step.index)
+        png = service.get_screenshot(step.screenshot_id.root)
+        assert png == png_for(prepare + step.index)
+
+
+@then(parsers.parse('実行のエラーの説明は "{prefix}" で始まる'))
+def run_error_message(ctx, prefix: str) -> None:
+    assert ctx["run"].error.message.startswith(prefix), dump(ctx["run"])
 
 
 @then(parsers.parse("実行の結果の一覧は {count:d} 件"))
@@ -344,6 +351,11 @@ def calculator_config():
 @when(parsers.parse('部品 "{part}" の "{action}" の規則を {rule} に変える'))
 def change_rule(config, part: str, action: str, rule: str) -> None:
     config["parts"][part]["rules"] = {action: json.loads(rule)}
+
+
+@when(parsers.parse("前準備を {steps} に変える"))
+def change_prepare(config, steps: str) -> None:
+    config["prepare"] = json.loads(steps)
 
 
 def load_config(tmp_path: Path, config) -> dict:
