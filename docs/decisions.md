@@ -6,10 +6,10 @@
 
 ## S1. 型の生成のしかた
 
-- 決めた人：AI　レビュー：未
+- 決めた人：AI　レビュー：済
 - datamodel-code-generator で、`../qata/contracts/schemas/` から `src/qata_server/contracts/` に生成する。手順は `scripts/generate_contracts.py`。
 - 生成は、いつもリポジトリの外の一時フォルダで行ってから写す。生成先の ruff の設定で整形が変わり、「生成し直しても同じ」の検査が揺れないようにするため。生成物は ruff の対象から外す。
-- 生成した型は、JSON Schema の `contains`（確認事項を一つは含む）や `if`/`then` を表せない。そのため、入ってきたテストケースの形式の検証は、型ではなく JSON Schema で行う（タスクの 1 で作る）。
+- 生成した型は、JSON Schema の `contains`（確認事項を一つは含む）や `if`/`then` を表せない。そのため、外から来るデータ（AI・web からのテストケース、runner の結果、部品の辞書のファイル）は、まず jsonschema で親の JSON Schema に照らして判定し、合格したものだけを型に読み込む。型は判定ではなく、コードで扱うための読み込みに使う（タスクの 1 で作る）。
 
 ## S2. 契約の検査は pytest-bdd で書く
 
