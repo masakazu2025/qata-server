@@ -22,7 +22,7 @@ SCHEMAS_DIR = (
 
 
 @cache
-def _registry() -> Registry:
+def registry() -> Registry:
     resources = [
         (
             path.as_uri(),
@@ -43,7 +43,7 @@ def _validator(contract: str) -> Draft202012Validator:
     file_name, _, fragment = contract.partition("#")
     uri = (SCHEMAS_DIR / file_name).as_uri() + (f"#{fragment}" if fragment else "")
     return Draft202012Validator(
-        {"$ref": uri}, registry=_registry(), format_checker=FormatChecker()
+        {"$ref": uri}, registry=registry(), format_checker=FormatChecker()
     )
 
 

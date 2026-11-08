@@ -14,7 +14,7 @@
 
 ```
 uv sync
-uv run pytest          # 契約・application・REST・依存の向き（import-linter）
+uv run pytest          # 契約・application・REST・MCP・依存の向き（import-linter）
 uv run ruff check
 uv run ruff format --check
 ```
@@ -38,3 +38,17 @@ uv run qata-server
 ```
 
 `http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは環境変数 `QATA_HOST`・`QATA_PORT`・`QATA_RUNNER_URL`・`QATA_DATA_DIR`（保存先、既定は `./data`）を使います。
+
+## MCP で使う
+
+AI（MCP のクライアント）からは、stdio で立ち上げます。道具は親の `mcp-tools.json` のとおりです。
+
+```
+uv run --directory <qata-server の場所> qata-server-mcp
+```
+
+REST の server と同じテストケースや実行の結果を見るには、`QATA_DATA_DIR` を同じ場所（絶対パス）にします。たとえば Claude Code では次のように足します。
+
+```
+claude mcp add qata -e QATA_DATA_DIR=<保存先> -- uv run --directory <qata-server の場所> qata-server-mcp
+```

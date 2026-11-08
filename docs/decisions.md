@@ -4,6 +4,26 @@
 
 ---
 
+## S7. MCP の入口
+
+- 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
+- 入口は `mcp_server.py` の `create_server(service)`。MCP の Python SDK（2.x）の低い層の `Server` を使う。道具の形を、関数の型から作らせず、契約のままに出すため。
+- 道具の名前・説明・inputSchema・outputSchema は、実行のときに親の `mcp-tools.json` を読んで、そのまま出す。`$ref` は referencing でたどって中身に置き換え、それだけで読める形にする（クライアントは外の `$ref` をたどらない）。契約の `$ref` は循環しないので、展開で足りる。
+- 道具と、それを受ける Service の呼び出しが一対一でなければ、server を立ち上げない。
+- 引数は inputSchema で検査し、合わなければ `invalid_arguments` のエラーにする。ただしテストケースの中身は見ず、Service が validation_result・register_result で返す（S6 と同じ）。ない道具は `unknown_tool`。
+- 道具のエラー（Service のエラーを含む）は、`isError` にして、契約の `error_response` の形を文字で返す。`code` は REST と同じ（S5）。
+- 結果は structuredContent に入れ、同じものを JSON の文字でも返す（structuredContent を読まないクライアントのため）。
+- 道具の呼び出しはスレッドで動かす。`run_testcase` は実行が終わるまで待つため。
+- 立ち上げは stdio（`uv run qata-server-mcp`）。デモのクライアント（Claude Desktop か Claude Code か）は決まっていないが、stdio はどちらでも使える。Streamable HTTP で REST と同じプロセスに載せる形は、要るときに足す。
+- REST と MCP は別のプロセスになるので、同じ `QATA_DATA_DIR` を指して、同じ SQLite とスクショを見る。Store は呼ぶたびにつなぐ（S4）ので、二つのプロセスから使ってよい。
+- 「MCP の道具が mcp-tools.json と合う」は、同じプロセスの中でつないだ MCP のクライアントから確かめる。
+  - 名前と説明が同じ。どの形にも `$ref` が残らず、JSON Schema として正しい。
+  - 展開した inputSchema が、契約の例を通し、確認事項のないもの・ステップのないものをはじく（契約と同じ判定）。
+  - 道具の結果が、展開とは別に referencing で `$ref` をたどった契約の outputSchema に通る。クライアントも、server が出す outputSchema で結果を確かめる。
+  - `qata-server-mcp` を立ち上げて stdio でつなぐと、道具がすべて出る。
+- 依存の向きは、`mcp_server` を `rest`・`runner_http` と同じ層に置く。
+- `contract_check._registry` を `registry` にして、MCP の入口とテストから使う。
+
 ## S6. REST の入口と、runner への HTTP
 
 - 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
