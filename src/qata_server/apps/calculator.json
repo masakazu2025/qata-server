@@ -2,42 +2,46 @@
   "app_id": "calculator",
   "name": "電卓",
   "launch": { "command": "calc.exe" },
-  "window": { "title": "電卓", "size": { "width": 320, "height": 500 } },
+  "window": { "title": "電卓", "size": { "width": 400, "height": 600 } },
   "screenshot": { "scope": "window" },
+  "prepare": [
+    { "type": "tap", "point": { "x": 32, "y": 57 } },
+    { "type": "tap", "point": { "x": 136, "y": 137 } }
+  ],
   "parts": {
     "1": {
       "description": "数字の 1",
       "rules": {
         "press_key": { "kind": "key", "key": "1" },
-        "tap": { "kind": "tap", "point": { "x": 40, "y": 400 } }
+        "tap": { "kind": "tap", "point": { "x": 58, "y": 499 } }
       }
     },
     "2": {
       "description": "数字の 2",
       "rules": {
         "press_key": { "kind": "key", "key": "2" },
-        "tap": { "kind": "tap", "point": { "x": 120, "y": 400 } }
+        "tap": { "kind": "tap", "point": { "x": 153, "y": 499 } }
       }
     },
     "3": {
       "description": "数字の 3",
       "rules": {
         "press_key": { "kind": "key", "key": "3" },
-        "tap": { "kind": "tap", "point": { "x": 200, "y": 400 } }
+        "tap": { "kind": "tap", "point": { "x": 248, "y": 499 } }
       }
     },
     "足す": {
       "description": "足し算（+）",
       "rules": {
         "press_key": { "kind": "key", "key": "+" },
-        "tap": { "kind": "tap", "point": { "x": 290, "y": 400 } }
+        "tap": { "kind": "tap", "point": { "x": 342, "y": 499 } }
       }
     },
     "等号": {
       "description": "計算する（=）",
       "rules": {
         "press_key": { "kind": "key", "key": "=" },
-        "tap": { "kind": "tap", "point": { "x": 290, "y": 460 } }
+        "tap": { "kind": "tap", "point": { "x": 342, "y": 559 } }
       }
     },
     "クリア": {

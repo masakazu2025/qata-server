@@ -36,8 +36,8 @@
       | testcase.add.json     | /extra                 | 1                                    | testcase.schema.json                      | 契約にない項目         |
       | calculator.parts.json | /parts                 | {}                                   | part-dictionary.schema.json               | 部品が一つもない       |
       | calculator.parts.json | /parts/表示/actions    | ["read"]                             | part-dictionary.schema.json               | ないアクション         |
-      | runner-command.json   | /steps/0/key           | "Ctrl+C"                             | runner-command.schema.json                | 同時押しは扱わない     |
-      | runner-command.json   | /steps/4/source/method | "ocr"                                | runner-command.schema.json                | まだない読み方         |
+      | runner-command.json   | /steps/2/key           | "Ctrl+C"                             | runner-command.schema.json                | 同時押しは扱わない     |
+      | runner-command.json   | /steps/6/source/method | "ocr"                                | runner-command.schema.json                | まだない読み方         |
       | runner-command.json   | /screenshot/scope      | "desktop"                            | runner-command.schema.json                | ないスクショの範囲     |
       | runner-result.json    | /status                | "aborted"                            | runner-result.schema.json                 | 止めたのに理由がない   |
       | run.json              | /status                | "error"                              | server.schema.json#/$defs/run             | エラーなのに理由がない |

@@ -15,7 +15,7 @@
     かつ runner への命令が契約 "runner-command.schema.json" に通る
     かつ runner への命令は親の例 "runner-command.json" と、run_id のほかは同じ
     かつ 実行の結果が契約 "server.schema.json#/$defs/run" に通る
-    かつ どのステップにもスクショがあり、runner が撮った PNG が取れる
+    かつ どのステップにもスクショがあり、runner がそのステップで撮った PNG が取れる
 
   シナリオ: 表示が期待する値と違えば、落ちる
     前提 runner は表示に "表示は 4 です" を返す
@@ -31,10 +31,19 @@
     かつ ステップの結果は "passed,passed,passed,passed,failed"
 
   シナリオ: runner が途中で止まったら、残りは実行しない
-    前提 runner は 3 番目のステップで止まる
+    # 命令の頭に前準備が 2 つあるので、テストケースの 3 番目は命令の 5 番目
+    前提 runner は命令の 5 番目のステップで止まる
     もし 実行する
     ならば 実行の結果は "error"
     かつ ステップの結果は "passed,passed,error,skipped,skipped"
+    かつ 実行の結果が契約 "server.schema.json#/$defs/run" に通る
+
+  シナリオ: runner が前準備で止まったら、どのステップも実行しない
+    前提 runner は命令の 2 番目のステップで止まる
+    もし 実行する
+    ならば 実行の結果は "error"
+    かつ ステップの結果は "skipped,skipped,skipped,skipped,skipped"
+    かつ 実行のエラーの説明は "前準備で止まった" で始まる
     かつ 実行の結果が契約 "server.schema.json#/$defs/run" に通る
 
   シナリオ: runner がアプリを起動できなければ、どのステップも実行しない

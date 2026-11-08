@@ -209,13 +209,13 @@ class Service:
             "run_id": run_id,
             "app": app.runner_app,
             "screenshot": app.screenshot,
-            "steps": [c.runner_step for c in conversions],
+            "steps": [*app.prepare, *(c.runner_step for c in conversions)],
         }
         started_at = self._now()
         raw = self._runner.run(command)
         finished_at = self._now()
 
-        broken = self._why_broken(raw, run_id, len(steps))
+        broken = self._why_broken(raw, run_id, len(command["steps"]))
         if broken:
             error = {
                 "code": "invalid_runner_result",
@@ -225,6 +225,7 @@ class Service:
                 run_id, testcase_id, steps, started_at, finished_at, error
             )
         else:
+            raw = self._without_prepare(raw, len(app.prepare))
             run = self._judge(run_id, testcase_id, steps, conversions, raw)
         self._store.save_run(run)
         return run
@@ -251,6 +252,25 @@ class Service:
                 except binascii.Error:
                     return f"/steps/{s['index']}/screenshot：Base64 として読めない"
         return None
+
+    @staticmethod
+    def _without_prepare(raw: dict[str, Any], count: int) -> dict[str, Any]:
+        """runner の結果から前準備のステップを除き、番号をテストケースに合わせる。
+
+        前準備で止まったら、テストケースのステップはどれも実行していない。
+        """
+        if count == 0:
+            return raw
+        prepared, rest = raw["steps"][:count], raw["steps"][count:]
+        result = {**raw, "steps": [{**s, "index": s["index"] - count} for s in rest]}
+        failed = next((s for s in prepared if s["status"] == "error"), None)
+        if failed is not None:
+            error = raw.get("error") or failed["error"]
+            result["error"] = {
+                "code": error["code"],
+                "message": f"前準備で止まった：{error['message']}",
+            }
+        return result
 
     def _judge(self, run_id, testcase_id, steps, conversions, raw) -> Run:
         """runner の結果から、ステップごとの合否と、実行の合否を決める。"""

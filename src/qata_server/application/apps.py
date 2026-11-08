@@ -29,6 +29,8 @@ class App:
     """runner への命令の app（起動のしかたとウィンドウ）。"""
     screenshot: dict[str, Any]
     """runner への命令の screenshot（撮る範囲）。"""
+    prepare: list[dict[str, Any]]
+    """前準備。テストケースのステップの前に runner に送る基本の操作（S8）。"""
     conversions: dict[tuple[str, str], Conversion]
     """(部品の名前, アクション) → 変換。"""
 
@@ -57,6 +59,7 @@ def _load(config: dict[str, Any]) -> App:
         "launch",
         "window",
         "screenshot",
+        "prepare",
         "parts",
     }
     if unknown:
@@ -70,6 +73,12 @@ def _load(config: dict[str, Any]) -> App:
         screenshot,
         "screenshot",
     )
+
+    prepare = config.get("prepare", [])
+    if not isinstance(prepare, list):
+        raise AppConfigError("prepare は配列にする")
+    for i, step in enumerate(prepare):
+        _check("runner-command.schema.json#/$defs/step", step, f"前準備の {i} 番目")
 
     parts: dict[str, Any] = {}
     conversions: dict[tuple[str, str], Conversion] = {}
@@ -99,6 +108,7 @@ def _load(config: dict[str, Any]) -> App:
         dictionary=PartDictionary.model_validate(dictionary),
         runner_app=runner_app,
         screenshot=screenshot,
+        prepare=prepare,
         conversions=conversions,
     )
 
