@@ -1,0 +1,31 @@
+# 関門（README の「関門」）を回す。通らないと main にマージできない（ブランチの保護）。
+# 親の契約を読むために、親のリポジトリを丸ごと取ってきて隣に置き、QATA_PARENT_DIR で指す。
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    env:
+      QATA_PARENT_DIR: ${{ github.workspace }}/parent
+    defaults:
+      run:
+        working-directory: qata-server
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: qata-server
+      - uses: actions/checkout@v5
+        with:
+          repository: masakazu2025/qata
+          path: parent
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run pytest
+      - run: uv run ruff check
+      - run: uv run ruff format --check
