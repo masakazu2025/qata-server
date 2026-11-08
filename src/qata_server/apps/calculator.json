@@ -1,0 +1,60 @@
+{
+  "app_id": "calculator",
+  "name": "電卓",
+  "launch": { "command": "calc.exe" },
+  "window": { "title": "電卓", "size": { "width": 320, "height": 500 } },
+  "screenshot": { "scope": "window" },
+  "parts": {
+    "1": {
+      "description": "数字の 1",
+      "rules": {
+        "press_key": { "kind": "key", "key": "1" },
+        "tap": { "kind": "tap", "point": { "x": 40, "y": 400 } }
+      }
+    },
+    "2": {
+      "description": "数字の 2",
+      "rules": {
+        "press_key": { "kind": "key", "key": "2" },
+        "tap": { "kind": "tap", "point": { "x": 120, "y": 400 } }
+      }
+    },
+    "3": {
+      "description": "数字の 3",
+      "rules": {
+        "press_key": { "kind": "key", "key": "3" },
+        "tap": { "kind": "tap", "point": { "x": 200, "y": 400 } }
+      }
+    },
+    "足す": {
+      "description": "足し算（+）",
+      "rules": {
+        "press_key": { "kind": "key", "key": "+" },
+        "tap": { "kind": "tap", "point": { "x": 290, "y": 400 } }
+      }
+    },
+    "等号": {
+      "description": "計算する（=）",
+      "rules": {
+        "press_key": { "kind": "key", "key": "=" },
+        "tap": { "kind": "tap", "point": { "x": 290, "y": 460 } }
+      }
+    },
+    "クリア": {
+      "description": "すべて消す（C）",
+      "rules": {
+        "press_key": { "kind": "key", "key": "Escape" }
+      }
+    },
+    "表示": {
+      "description": "計算の結果を出す表示欄",
+      "rules": {
+        "expect_text": {
+          "kind": "uia",
+          "automation_id": "CalculatorResults",
+          "extract": "^表示は (.+) です$"
+        }
+      }
+    }
+  }
+}

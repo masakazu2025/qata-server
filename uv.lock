@@ -778,35 +778,37 @@ name = "qata-server"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "jsonschema" },
     { name = "pydantic" },
+    { name = "referencing" },
+    { name = "rfc3339-validator" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "datamodel-code-generator" },
     { name = "import-linter" },
-    { name = "jsonschema" },
     { name = "pytest" },
     { name = "pytest-bdd" },
     { name = "pyyaml" },
-    { name = "referencing" },
-    { name = "rfc3339-validator" },
     { name = "ruff" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.14.3" }]
+requires-dist = [
+    { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "pydantic", specifier = ">=2.14.3" },
+    { name = "referencing", specifier = ">=0.37.0" },
+    { name = "rfc3339-validator", specifier = ">=0.1.4" },
+]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "datamodel-code-generator", specifier = ">=0.91.0" },
     { name = "import-linter", specifier = ">=2.16" },
-    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "pytest-bdd", specifier = ">=9.0.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "referencing", specifier = ">=0.37.0" },
-    { name = "rfc3339-validator", specifier = ">=0.1.4" },
     { name = "ruff", specifier = ">=0.17.4" },
 ]
 
