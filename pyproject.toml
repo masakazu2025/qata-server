@@ -1,0 +1,40 @@
+[project]
+name = "qata-server"
+version = "0.1.0"
+description = "qata の server"
+authors = [
+    { name = "Masakazu2025", email = "miz.masakazu87@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.14.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "datamodel-code-generator>=0.91.0",
+    "import-linter>=2.16",
+    "jsonschema>=4.26.0",
+    "pytest>=9.2.0",
+    "pytest-bdd>=9.0.1",
+    "pyyaml>=6.0.3",
+    "referencing>=0.37.0",
+    "rfc3339-validator>=0.1.4",
+    "ruff>=0.17.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["scripts"]
+addopts = "--strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+extend-exclude = ["src/qata_server/contracts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
