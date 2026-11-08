@@ -2,7 +2,7 @@
 
 [qata](https://github.com/masakazu2025/qata) の server です。部品の辞書の提供、テストケースの検証・登録、実行の指揮、結果の保存を受け持ちます。LLM は呼びません。テストケースを考えるのは MCP の向こうの AI で、server は道具と関門だけを持ちます。
 
-契約と全体の要件は、親のリポジトリ `qata` が正です。このリポジトリは、親と同じ作業フォルダに並べて置きます（`../qata/contracts/` を読むため）。
+契約と全体の要件は、親のリポジトリ `qata` が正です。このリポジトリは、親と同じ作業フォルダに並べて置きます（`../qata/contracts/` を読むため）。親を別の場所に置くときは、環境変数 `QATA_PARENT_DIR` で親のリポジトリを指します。
 
 ```
 作業フォルダ/
@@ -11,6 +11,8 @@
 ```
 
 ## 関門
+
+pull request と main への push のたびに、GitHub Actions（`.github/workflows/ci.yml`）が下を回します。通らないと main にマージできません。
 
 ```
 uv sync
