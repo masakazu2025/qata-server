@@ -18,3 +18,4 @@ qata の server です。部品の辞書の提供、テストケースの検証�
 @../qata/.claude/rules/general/parent-and-children.md
 @../qata/.claude/rules/general/rules-and-skills.md
 @../qata/.claude/rules/qata/repos-and-contracts.md
+@../qata/.claude/rules/qata/knowledge.md
