@@ -4,15 +4,18 @@
 
 ---
 
-## S10. 設定は settings.py の Settings 一つで読む
+## S10. 設定は settings.py の型で読む
 
 - 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
-- 設定（`QATA_DATA_DIR`・`QATA_RUNNER_URL`・`QATA_HOST`・`QATA_PORT`・`QATA_PARENT_DIR`）は、pydantic-settings の `Settings`（`src/qata_server/settings.py`）だけが環境変数から読む。名前と既定値は前のまま。
+- 環境変数から読むのは `src/qata_server/settings.py` の pydantic-settings の型だけ。名前と既定値は前のまま。
+  - `Settings`：立ち上げの設定（`QATA_DATA_DIR`・`QATA_RUNNER_URL`・`QATA_HOST`・`QATA_PORT`）
+  - `ParentSettings`：親の契約の場所（`QATA_PARENT_DIR`）
+  - 二つに分けたのは、契約を読むところが、関係のない立ち上げの設定の誤り（数でない `QATA_PORT` など）で巻き添えに落ちないようにするため（レビューの指摘）。
 - `main.py` の組み立て（`build`・`build_service`）は `Settings` を受け取る。立ち上げ（`serve`・`serve_mcp`）が一度だけ `Settings()` を作る。
-- 親の契約の場所（`QATA_PARENT_DIR`）は、契約の判定（`contract_check.py`）と型の生成（`scripts/generate_contracts.py`）が、読み込んだときに `Settings().parent_dir` から取る。判定の道具はプロセスの間使い回していて、受け取る形にすると Service や MCP まで通すことになり、いまは得がないため。
+- 親の契約の場所は、契約の判定（`contract_check.py`）と型の生成（`scripts/generate_contracts.py`）が、読み込んだときに `ParentSettings().parent_dir` から取る。判定の道具はプロセスの間使い回していて、受け取る形にすると Service や MCP まで通すことになり、いまは得がないため。
 - `settings.py` は依存の層で、契約の型と同じ一番下に置く。application からも読めるようにするため。
 - 空の環境変数は、置いていないものとして扱う（前の `QATA_PARENT_DIR` と同じ）。ほかの設定も、空なら既定値になる。数でない `QATA_PORT` は、立ち上げる前に誤りにする。
-- ほかに環境変数の値を読むところがないことは、テスト（`tests/settings.feature`）で確かめる。子のプロセスに環境をそのまま渡すもの（`{**os.environ}`）は、読むに入れない。
+- ほかに環境変数を読むところがないことは、テスト（`tests/settings.feature`）で確かめる。`environ`・`getenv` が出てきたら読むとみなし、子のプロセスに環境をそのまま渡す `{**os.environ}` の形だけを許す。
 
 ## S9. 型の検査は pyright の standard で、契約から生成した型は報告から外す
 

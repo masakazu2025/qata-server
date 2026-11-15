@@ -42,7 +42,7 @@ uv run python scripts/generate_contracts.py
 uv run qata-server
 ```
 
-`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは環境変数 `QATA_HOST`・`QATA_PORT`・`QATA_RUNNER_URL`・`QATA_DATA_DIR`（保存先、既定は `./data`）を使います。設定を読むのは `src/qata_server/settings.py` の `Settings`（pydantic-settings）だけで、空の環境変数は置いていないものとして扱います。
+`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは環境変数 `QATA_HOST`・`QATA_PORT`・`QATA_RUNNER_URL`・`QATA_DATA_DIR`（保存先、既定は `./data`）を使います。環境変数を読むのは `src/qata_server/settings.py`（pydantic-settings）だけで、空の環境変数は置いていないものとして扱います。
 
 ## MCP で使う
 

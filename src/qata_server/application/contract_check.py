@@ -15,11 +15,11 @@ from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-from qata_server.settings import Settings
+from qata_server.settings import ParentSettings
 
 # 親の契約。親のリポジトリの場所は設定（QATA_PARENT_DIR）から取る。
 # 判定の道具はプロセスの間使い回すので、場所は読み込んだときに決める（S10）。
-SCHEMAS_DIR = Settings().parent_dir / "contracts" / "schemas"
+SCHEMAS_DIR = ParentSettings().parent_dir / "contracts" / "schemas"
 
 
 @cache

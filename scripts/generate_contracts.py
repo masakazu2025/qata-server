@@ -13,11 +13,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-from qata_server.settings import Settings
+from qata_server.settings import ParentSettings
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 # 親のリポジトリ。server の設定（QATA_PARENT_DIR）と同じ場所を見る
-PARENT_DIR = Settings().parent_dir
+PARENT_DIR = ParentSettings().parent_dir
 CONTRACTS_DIR = PARENT_DIR / "contracts"
 SCHEMAS_DIR = CONTRACTS_DIR / "schemas"
 GENERATED_DIR = REPO_ROOT / "src" / "qata_server" / "contracts"
