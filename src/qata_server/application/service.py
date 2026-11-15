@@ -41,9 +41,12 @@ class ServiceError(Exception):
 def internal_message(exc: BaseException) -> str:
     """想定していない誤り（エラーのコード internal_error）の説明。
 
-    例外の中身は利用者に見せず、種類だけを入れる。
+    テスターも読むので、することを書く。例外の中身は見せず、種類だけを入れる。
     """
-    return f"server の中で想定していない誤りが起きた（{type(exc).__name__}）"
+    return (
+        "server で想定していない誤りが起きたため、止めた。"
+        f"くり返すときは、開発者に server のログを見てもらう（{type(exc).__name__}）"
+    )
 
 
 class NotFound(ServiceError):
@@ -234,7 +237,12 @@ class Service:
         if broken:
             error = {
                 "code": "invalid_runner_result",
-                "message": f"runner の結果が契約に合わない：{broken}",
+                # テスターも読むので、契約の言葉は詳しくの中だけにする
+                "message": (
+                    "runner から届いた結果を読み取れず、合否を判定できなかった。"
+                    "テストケースではなく runner の不具合のおそれがある"
+                    f"（詳しく：{broken}）"
+                ),
             }
             run = self._error_run(
                 run_id, testcase_id, steps, started_at, finished_at, error
