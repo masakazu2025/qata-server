@@ -21,6 +21,7 @@ uv sync
 uv run pytest          # 契約・application・REST・MCP・依存の向き（import-linter）
 uv run ruff check
 uv run ruff format --check
+uv run pyright         # 型（契約から生成した型は報告から外す）
 ```
 
 ## 契約から型を生成する

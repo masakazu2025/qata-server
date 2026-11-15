@@ -47,7 +47,7 @@ def _error(description: str) -> dict[str, Any]:
     return {"description": description, "model": ErrorResponse}
 
 
-_NOT_FOUND = {404: _error("見つからない")}
+_NOT_FOUND: dict[int | str, dict[str, Any]] = {404: _error("見つからない")}
 
 
 def create_app(service: Service) -> FastAPI:

@@ -7,6 +7,7 @@
 import json
 import os
 from collections import defaultdict
+from collections.abc import Mapping
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -72,7 +73,8 @@ def _explain(error: ValidationError) -> list[ValidationError]:
 
     jsonschema は「どの枝にも合わない」としか言わず、どこが悪いかが読めないため。
     """
-    prop = (error.schema.get("discriminator") or {}).get("propertyName")
+    schema = error.schema if isinstance(error.schema, Mapping) else {}
+    prop = (schema.get("discriminator") or {}).get("propertyName")
     if error.validator != "oneOf" or not error.context or prop is None:
         return [error]
     if not isinstance(error.instance, dict) or prop not in error.instance:
