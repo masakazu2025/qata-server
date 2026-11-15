@@ -239,8 +239,7 @@ class Service:
                 "code": "invalid_runner_result",
                 # テスターも読むので、契約の言葉は詳しくの中だけにする
                 "message": (
-                    "runner から届いた結果を読み取れず、合否を判定できなかった。"
-                    "テストケースではなく runner の不具合のおそれがある"
+                    "runner から届いた結果を読み取れず、合否を判定できなかった"
                     f"（詳しく：{broken}）"
                 ),
             }
