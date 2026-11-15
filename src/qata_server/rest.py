@@ -172,7 +172,10 @@ def create_app(service: Service) -> FastAPI:
         response_model_exclude_none=True,
         responses={
             **_NOT_FOUND,
-            409: _error("人の確認待ち、またはいまの部品の辞書に合わない"),
+            409: _error(
+                "人の確認待ち、いまの部品の辞書に合わない、"
+                "または runner がほかの実行の最中"
+            ),
             502: _error("runner に届かない"),
         },
     )

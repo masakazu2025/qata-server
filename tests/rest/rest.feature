@@ -77,6 +77,14 @@
     ならば 応答は 502 で、本文が契約 "server.schema.json#/$defs/error_response" に通る
     かつ エラーの code は "runner_unavailable"
 
+  シナリオ: runner がほかの実行の最中なら 409 で、実行の結果を残さない
+    前提 runner はほかの実行の最中
+    もし 人の確認が要らない例を "/testcases" に POST する
+    かつ 登録したテストケースを実行する
+    ならば 応答は 409 で、本文が契約 "server.schema.json#/$defs/error_response" に通る
+    かつ エラーの code は "runner_busy"
+    かつ "/runs" を GET すると 0 件
+
   シナリオ: 消したものは 404 になる
     もし 人の確認が要らない例を "/testcases" に POST する
     かつ 登録したテストケースを消す

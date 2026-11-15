@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from qata_server.application import RunnerUnavailable
+from qata_server.application import RunnerBusy, RunnerUnavailable
 
 
 class HttpRunner:
@@ -24,6 +24,11 @@ class HttpRunner:
             response = self._client.post("/runs", json=command)
         except httpx.HTTPError as exc:
             raise RunnerUnavailable(f"runner に届かない：{exc!r}") from exc
+        if response.status_code == 409 and _code(response) == "runner_busy":
+            raise RunnerBusy(
+                "runner がほかの実行の最中なので、実行しなかった。"
+                "終わってからもう一度実行する"
+            )
         if response.is_error:
             raise RunnerUnavailable(
                 f"runner が命令を受けなかった（HTTP {response.status_code}）："
@@ -34,3 +39,12 @@ class HttpRunner:
         except ValueError:
             # JSON でなければ、そのまま返す。契約に合わないものとして server が判定する
             return response.text
+
+
+def _code(response: httpx.Response) -> str | None:
+    """runner のエラーの本文（契約の共通の部品 error）の code。読めなければ None。"""
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    return body.get("code") if isinstance(body, dict) else None

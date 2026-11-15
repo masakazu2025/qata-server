@@ -187,6 +187,17 @@ def runner_unreachable(runner: FakeRunner) -> None:
     runner.mode = "unreachable"
 
 
+@given("runner はほかの実行の最中")
+def runner_busy(runner: FakeRunner) -> None:
+    runner.mode = "busy"
+
+
+@then("実行の結果は残っていない")
+def no_runs(tmp_path: Path) -> None:
+    # mcp と同じ置き場所を開き直して数える
+    assert Store(tmp_path / "data").list_runs() == []
+
+
 @when(parsers.parse('道具 "{name}" を呼ぶ'))
 def call_plain(mcp: Mcp, ctx, name: str) -> None:
     call(mcp, ctx, name, {})
