@@ -242,6 +242,11 @@ def runner_broken(runner: FakeRunner) -> None:
     runner.mode = "broken"
 
 
+@given("runner はスクショのデータに ASCII でない文字を入れて返す")
+def runner_non_ascii_screenshot(runner: FakeRunner) -> None:
+    runner.screenshot_data = "スクショ"
+
+
 @given("runner に届かない")
 def runner_unreachable(runner: FakeRunner) -> None:
     runner.mode = "unreachable"

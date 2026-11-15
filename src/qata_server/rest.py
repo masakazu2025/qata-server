@@ -18,6 +18,7 @@ from qata_server.application import (
     RunnerUnavailable,
     Service,
     ServiceError,
+    internal_message,
 )
 from qata_server.contracts.part_dictionary_schema import PartDictionary
 from qata_server.contracts.server_schema import (
@@ -51,7 +52,12 @@ _NOT_FOUND: dict[int | str, dict[str, Any]] = {404: _error("見つからない")
 
 
 def create_app(service: Service) -> FastAPI:
-    app = FastAPI(title="qata-server API", version="0.1.0")
+    app = FastAPI(
+        title="qata-server API",
+        version="0.1.0",
+        # どの道でも、想定していない誤りは 500 で返す
+        responses={500: _error("server の中で想定していない誤りが起きた")},
+    )
 
     @app.exception_handler(ServiceError)
     def service_error(_: Request, exc: ServiceError) -> JSONResponse:
@@ -67,6 +73,15 @@ def create_app(service: Service) -> FastAPI:
         return JSONResponse(
             {"error": {"code": code, "message": str(exc.detail)}},
             status_code=exc.status_code,
+        )
+
+    @app.exception_handler(Exception)
+    def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
+        # 想定していない誤りも、契約の error_response の形で返す。
+        # 例外は Starlette が投げ直すので、中身はサーバーのログに残る
+        return JSONResponse(
+            {"error": {"code": "internal_error", "message": internal_message(exc)}},
+            status_code=500,
         )
 
     # 部品の辞書
@@ -227,10 +242,13 @@ def create_app(service: Service) -> FastAPI:
 
 
 async def _json(request: Request) -> Any:
-    """本文を JSON として読む。読めなければ、契約に合わない値（None）として扱う。"""
+    """本文を JSON として読む。読めなければ、契約に合わない値（None）として扱う。
+
+    極端に深く入れ子にした本文は、RecursionError で読めない。
+    """
     try:
         return json.loads(await request.body())
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
 
 

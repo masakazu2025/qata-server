@@ -1,7 +1,6 @@
 """server の機能。REST（web 用）と MCP（AI 用）の入口は、これを薄く包む。"""
 
 import base64
-import binascii
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any, Protocol
@@ -37,6 +36,14 @@ class ServiceError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+def internal_message(exc: BaseException) -> str:
+    """想定していない誤り（エラーのコード internal_error）の説明。
+
+    例外の中身は利用者に見せず、種類だけを入れる。
+    """
+    return f"server の中で想定していない誤りが起きた（{type(exc).__name__}）"
 
 
 class NotFound(ServiceError):
@@ -257,7 +264,9 @@ class Service:
             if "screenshot" in s:
                 try:
                     base64.b64decode(s["screenshot"]["data_base64"], validate=True)
-                except binascii.Error:
+                except ValueError:
+                    # binascii.Error（ValueError の一つ）のほか、ASCII でない文字
+                    # があると ValueError そのものが出る
                     return f"/steps/{s['index']}/screenshot：Base64 として読めない"
         return None
 

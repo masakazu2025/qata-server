@@ -28,6 +28,8 @@ class FakeRunner:
         self.text = "表示は 3 です"
         self.mode = "ok"
         self.abort_at: int | None = None
+        # スクショのデータ（Base64）。None なら、ステップごとの PNG から作る
+        self.screenshot_data: str | None = None
         self.commands: list[dict[str, Any]] = []
 
     def run(self, command: dict[str, Any]) -> Any:
@@ -35,6 +37,9 @@ class FakeRunner:
             raise RunnerUnavailable("runner に届かない（偽物）")
         if self.mode == "busy":
             raise RunnerBusy("runner はほかの実行の最中（偽物）")
+        if self.mode == "crash":
+            # server の中の想定していない誤りの代わり
+            raise RuntimeError("想定していない誤り（偽物）")
         self.commands.append(copy.deepcopy(command))
         base = {
             "run_id": command["run_id"],
@@ -57,7 +62,8 @@ class FakeRunner:
                 "status": "ok",
                 "screenshot": {
                     "media_type": "image/png",
-                    "data_base64": base64.b64encode(png_for(i)).decode(),
+                    "data_base64": self.screenshot_data
+                    or base64.b64encode(png_for(i)).decode(),
                 },
             }
             if step["type"] == "read_text":

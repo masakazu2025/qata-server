@@ -187,6 +187,11 @@ def runner_unreachable(runner: FakeRunner) -> None:
     runner.mode = "unreachable"
 
 
+@given("server の中で想定していない誤りが起きる")
+def runner_crashes(runner: FakeRunner) -> None:
+    runner.mode = "crash"
+
+
 @given("runner はほかの実行の最中")
 def runner_busy(runner: FakeRunner) -> None:
     runner.mode = "busy"
