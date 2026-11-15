@@ -4,6 +4,15 @@
 
 ---
 
+## S9. 型の検査は pyright の standard で、契約から生成した型は報告から外す
+
+- 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
+- 関門に `uv run pyright` を足した。設定は pyproject.toml の `[tool.pyright]`。対象は src・tests・scripts。
+- モードは standard。strict は、型の付いていないライブラリ（jsonschema など）の扱いで誤りが多く出て、中身より抑えの記述が増えるため。困ったら上げる。
+- 契約から生成した型（`src/qata_server/contracts`）は、ruff と同じく報告から外す。手で直さない生成物のため。外しても、import されれば型は読まれるので、使い方の誤りは捕まる。
+- `extraPaths` は pytest の `pythonpath` と同じ（scripts・tests）。テストが直下のモジュールを import するため。
+- 出た誤りは、動きを変えずに型を合わせて直した（`isinstance` で絞る、注釈を足す）。
+
 ## S8. 本物の電卓に合わせる：大きさ・前準備・座標
 
 - 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）

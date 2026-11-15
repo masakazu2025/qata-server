@@ -82,7 +82,7 @@ CONVERTERS: dict[str, Converter] = {
 def convert(action: str, rule: dict[str, Any]) -> Conversion:
     """規則を変換にする。規則が違えば RuleError。"""
     kind = rule.get("kind")
-    converter = CONVERTERS.get(kind)
+    converter = CONVERTERS.get(kind) if isinstance(kind, str) else None
     if converter is None:
         raise RuleError(
             f"知らない規則の種類：{kind!r}（使えるのは {sorted(CONVERTERS)}）"

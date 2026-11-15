@@ -5,6 +5,7 @@
 生成物は src/qata_server/contracts/ に置き、コミットする。手で直さない。
 """
 
+import io
 import os
 import shutil
 import subprocess
@@ -64,6 +65,7 @@ def generate(out_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8")
     generate(GENERATED_DIR)
     print(f"生成した：{GENERATED_DIR}")

@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 import yaml
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from generate_contracts import CONTRACTS_DIR
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -57,7 +58,9 @@ def contract_openapi() -> dict[str, Any]:
 
 
 def fastapi_openapi(client: TestClient) -> dict[str, Any]:
-    return client.app.openapi()
+    app = client.app
+    assert isinstance(app, FastAPI)
+    return app.openapi()
 
 
 def resolve(node: Any, document: dict[str, Any]) -> Any:
