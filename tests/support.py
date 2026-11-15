@@ -7,7 +7,7 @@ from typing import Any
 
 from generate_contracts import CONTRACTS_DIR
 
-from qata_server.application import RunnerUnavailable
+from qata_server.application import RunnerBusy, RunnerUnavailable
 
 EXAMPLES_DIR = CONTRACTS_DIR / "examples"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -33,6 +33,8 @@ class FakeRunner:
     def run(self, command: dict[str, Any]) -> Any:
         if self.mode == "unreachable":
             raise RunnerUnavailable("runner に届かない（偽物）")
+        if self.mode == "busy":
+            raise RunnerBusy("runner はほかの実行の最中（偽物）")
         self.commands.append(copy.deepcopy(command))
         base = {
             "run_id": command["run_id"],

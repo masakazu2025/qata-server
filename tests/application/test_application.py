@@ -247,6 +247,11 @@ def runner_unreachable(runner: FakeRunner) -> None:
     runner.mode = "unreachable"
 
 
+@given("runner はほかの実行の最中")
+def runner_busy(runner: FakeRunner) -> None:
+    runner.mode = "busy"
+
+
 @given("実行した")
 @when("実行する")
 def run(service: Service, ctx) -> None:

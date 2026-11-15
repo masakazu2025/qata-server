@@ -13,7 +13,13 @@ from generate_contracts import CONTRACTS_DIR
 from pytest_bdd import given, parsers, scenarios, then, when
 from support import FakeRunner, load_example
 
-from qata_server.application import RunnerUnavailable, Service, Store, load_apps
+from qata_server.application import (
+    RunnerBusy,
+    RunnerUnavailable,
+    Service,
+    Store,
+    load_apps,
+)
 from qata_server.application.contract_check import problems
 from qata_server.contracts import server_schema, testcase_schema
 from qata_server.contracts.part_dictionary_schema import PartDictionary
@@ -216,6 +222,18 @@ def runner_unreachable(runner: FakeRunner) -> None:
     runner.mode = "unreachable"
 
 
+@given("runner はほかの実行の最中")
+def runner_busy(runner: FakeRunner) -> None:
+    runner.mode = "busy"
+
+
+@then(parsers.parse('"{path}" を GET すると {count:d} 件'))
+def get_count(client: TestClient, path: str, count: int) -> None:
+    response = client.get(path)
+    assert response.status_code == 200, response.text
+    assert len(response.json()) == count
+
+
 @when(parsers.parse('契約の例 "{file_name}" を "{path}" に POST する'))
 def post_example(client: TestClient, ctx, file_name: str, path: str) -> None:
     post_testcase(client, ctx, path, load_example(file_name))
@@ -352,6 +370,18 @@ def runner_returns_example(runner_server: RunnerServer, file_name: str) -> None:
 @given("runner は JSON でない本文を返す")
 def runner_returns_html(runner_server: RunnerServer) -> None:
     runner_server.respond = lambda request: httpx.Response(200, text="<html>")
+
+
+@given(parsers.parse('runner は 409 で "{code}" を返す'))
+def runner_returns_409(runner_server: RunnerServer, code: str) -> None:
+    body = {"code": code, "message": "ほかの実行の最中（偽物）"}
+    runner_server.respond = lambda request: httpx.Response(409, json=body)
+
+
+@then("命令を送ると、runner はほかの実行の最中とされる")
+def send_busy(http_runner: HttpRunner) -> None:
+    with pytest.raises(RunnerBusy):
+        http_runner.run(load_example("runner-command.json"))
 
 
 @given("runner は HTTP 500 を返す")

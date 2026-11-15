@@ -13,6 +13,10 @@
     もし 契約の例 "runner-command.json" の命令を送る
     ならば 返ってきた本文は "<html>"
 
+  シナリオ: runner が runner_busy で断ったら、ほかの実行の最中として扱う
+    前提 runner は 409 で "runner_busy" を返す
+    ならば 命令を送ると、runner はほかの実行の最中とされる
+
   シナリオ: runner がエラーを返したら、届かないものとして扱う
     前提 runner は HTTP 500 を返す
     ならば 命令を送ると、runner に届かないとされる

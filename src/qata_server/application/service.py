@@ -24,7 +24,8 @@ class Runner(Protocol):
     def run(self, command: dict[str, Any]) -> Any:
         """runner-command を送り、返ってきた本文（JSON）をそのまま返す。
 
-        届かなければ RunnerUnavailable。返ってきたものの判定は server が行う。
+        届かなければ RunnerUnavailable、ほかの実行の最中なら RunnerBusy。
+        返ってきたものの判定は server が行う。
         """
         ...
 
@@ -49,6 +50,13 @@ class Conflict(ServiceError):
 class RunnerUnavailable(ServiceError):
     def __init__(self, message: str) -> None:
         super().__init__("runner_unavailable", message)
+
+
+class RunnerBusy(Conflict):
+    """runner がほかの実行の最中で、命令を断った。実行していないので結果は残さない。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__("runner_busy", message)
 
 
 def _now() -> str:
