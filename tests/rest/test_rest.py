@@ -51,7 +51,8 @@ def runner() -> FakeRunner:
 @pytest.fixture
 def client(tmp_path: Path, runner: FakeRunner) -> TestClient:
     service = Service(load_apps(), Store(tmp_path / "data"), runner)
-    return TestClient(create_app(service))
+    # 想定していない誤りの応答を見るため、例外をテストに投げ直させない
+    return TestClient(create_app(service), raise_server_exceptions=False)
 
 
 @pytest.fixture
@@ -222,6 +223,11 @@ def runner_unreachable(runner: FakeRunner) -> None:
     runner.mode = "unreachable"
 
 
+@given("server の中で想定していない誤りが起きる")
+def runner_crashes(runner: FakeRunner) -> None:
+    runner.mode = "crash"
+
+
 @given("runner はほかの実行の最中")
 def runner_busy(runner: FakeRunner) -> None:
     runner.mode = "busy"
@@ -260,6 +266,16 @@ def post_needs_review(client: TestClient, ctx, need: str, path: str) -> None:
 def post_not_json(client: TestClient, ctx, path: str) -> None:
     ctx["response"] = client.post(
         path, content=b"{not json", headers={"content-type": "application/json"}
+    )
+
+
+@when(parsers.parse('極端に深く入れ子にした本文を "{path}" に POST する'))
+def post_deeply_nested(client: TestClient, ctx, path: str) -> None:
+    depth = 100_000  # json.loads が RecursionError を投げる深さ
+    ctx["response"] = client.post(
+        path,
+        content=b"[" * depth + b"]" * depth,
+        headers={"content-type": "application/json"},
     )
 
 

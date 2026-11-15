@@ -5,6 +5,7 @@
 """
 
 import json
+import logging
 from collections.abc import Callable
 from functools import cache
 from typing import Any
@@ -15,8 +16,10 @@ from jsonschema import Draft202012Validator
 from mcp.server.lowlevel import Server
 from pydantic import BaseModel
 
-from qata_server.application import Service, ServiceError
+from qata_server.application import Service, ServiceError, internal_message
 from qata_server.application.contract_check import SCHEMAS_DIR, pointer, registry
+
+_logger = logging.getLogger(__name__)
 
 MCP_TOOLS = SCHEMAS_DIR.parent / "mcp-tools.json"
 
@@ -95,6 +98,14 @@ def create_server(service: Service) -> Server:
         return listed
 
     async def call_tool(_ctx, params: types.CallToolRequestParams):
+        try:
+            return await _call_tool(params)
+        except Exception as exc:
+            # 想定していない誤りも、契約の error_response の形で返す
+            _logger.exception("道具 %r で想定していない誤り", params.name)
+            return _error("internal_error", internal_message(exc))
+
+    async def _call_tool(params: types.CallToolRequestParams):
         name = params.name
         arguments = params.arguments or {}
         if name not in tools:

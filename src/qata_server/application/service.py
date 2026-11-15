@@ -1,7 +1,6 @@
 """server の機能。REST（web 用）と MCP（AI 用）の入口は、これを薄く包む。"""
 
 import base64
-import binascii
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any, Protocol
@@ -37,6 +36,17 @@ class ServiceError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+def internal_message(exc: BaseException) -> str:
+    """想定していない誤り（エラーのコード internal_error）の説明。
+
+    テスターも読むので、することを書く。例外の中身は見せず、種類だけを入れる。
+    """
+    return (
+        "server で想定していない誤りが起きたため、止めた。"
+        f"くり返すときは、開発者に server のログを見てもらう（{type(exc).__name__}）"
+    )
 
 
 class NotFound(ServiceError):
@@ -227,7 +237,11 @@ class Service:
         if broken:
             error = {
                 "code": "invalid_runner_result",
-                "message": f"runner の結果が契約に合わない：{broken}",
+                # テスターも読むので、契約の言葉は詳しくの中だけにする
+                "message": (
+                    "runner から届いた結果を読み取れず、合否を判定できなかった"
+                    f"（詳しく：{broken}）"
+                ),
             }
             run = self._error_run(
                 run_id, testcase_id, steps, started_at, finished_at, error
@@ -257,7 +271,9 @@ class Service:
             if "screenshot" in s:
                 try:
                     base64.b64decode(s["screenshot"]["data_base64"], validate=True)
-                except binascii.Error:
+                except ValueError:
+                    # binascii.Error（ValueError の一つ）のほか、ASCII でない文字
+                    # があると ValueError そのものが出る
                     return f"/steps/{s['index']}/screenshot：Base64 として読めない"
         return None
 

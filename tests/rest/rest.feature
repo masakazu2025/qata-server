@@ -85,6 +85,18 @@
     かつ エラーの code は "runner_busy"
     かつ "/runs" を GET すると 0 件
 
+  シナリオ: 想定していない誤りは 500 で、契約の形で返す
+    前提 server の中で想定していない誤りが起きる
+    もし 人の確認が要らない例を "/testcases" に POST する
+    かつ 登録したテストケースを実行する
+    ならば 応答は 500 で、本文が契約 "server.schema.json#/$defs/error_response" に通る
+    かつ エラーの code は "internal_error"
+
+  シナリオ: 極端に深く入れ子にした本文も、読めない本文として形式の誤りで返す
+    もし 極端に深く入れ子にした本文を "/testcases" に POST する
+    ならば 応答は 422 で、本文が契約 "server.schema.json#/$defs/validation_result" に通る
+    かつ 問題の code は "schema"
+
   シナリオ: 消したものは 404 になる
     もし 人の確認が要らない例を "/testcases" に POST する
     かつ 登録したテストケースを消す

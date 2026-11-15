@@ -60,6 +60,14 @@
     かつ 実行のエラーは "invalid_runner_result"
     かつ 実行の結果が契約 "server.schema.json#/$defs/run" に通る
 
+  シナリオ: スクショのデータに ASCII でない文字があれば、契約に合わない結果として残す
+    前提 runner はスクショのデータに ASCII でない文字を入れて返す
+    もし 実行する
+    ならば 実行の結果は "error"
+    かつ 実行のエラーは "invalid_runner_result"
+    かつ 実行の結果が契約 "server.schema.json#/$defs/run" に通る
+    かつ 実行の結果の一覧は 1 件
+
   シナリオ: runner に届かなければ、実行の結果を残さない
     前提 runner に届かない
     ならば 実行すると "runner_unavailable" で断られる

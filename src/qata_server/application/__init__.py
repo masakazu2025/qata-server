@@ -9,6 +9,7 @@ from qata_server.application.service import (
     RunnerUnavailable,
     Service,
     ServiceError,
+    internal_message,
 )
 from qata_server.application.store import Store
 
@@ -22,6 +23,7 @@ __all__ = [
     "RunnerUnavailable",
     "Service",
     "ServiceError",
+    "internal_message",
     "Store",
     "load_apps",
 ]
