@@ -9,6 +9,7 @@ import re
 import sys
 import uuid
 from pathlib import Path
+from typing import Any
 
 from alembic import command
 from alembic.config import Config
@@ -21,6 +22,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     delete,
+    event,
     literal_column,
     select,
 )
@@ -74,13 +76,39 @@ def upgrade(connection: Connection) -> None:
     command.upgrade(config, "head")
 
 
+def upgrade_exclusively(data_dir: Path) -> None:
+    """ほかのプロセスと一つずつ、マイグレーションを最新まで当てる。
+
+    REST と MCP が同時に立ち上がっても、同じマイグレーションを二度当てないように、
+    当てる間は SQLite のファイルを排他で握る。あとから来たほうは待ってから版を読むので、
+    当て終わったものは当てない。
+    """
+    # 待つのは 30 秒まで。表を作り直すマイグレーションは時間がかかるため
+    engine = create_engine(database_url(data_dir), connect_args={"timeout": 30})
+
+    # pysqlite は自分で BEGIN を出し、DDL の前で区切ってしまう。それを止め、
+    # 始めに BEGIN EXCLUSIVE を出す（SQLAlchemy の SQLite の説明の書き方）
+    @event.listens_for(engine, "connect")
+    def _no_driver_begin(dbapi_connection: Any, _record: Any) -> None:
+        dbapi_connection.isolation_level = None
+
+    @event.listens_for(engine, "begin")
+    def _begin_exclusive(connection: Connection) -> None:
+        connection.exec_driver_sql("BEGIN EXCLUSIVE")
+
+    try:
+        with engine.begin() as connection:
+            upgrade(connection)
+    finally:
+        engine.dispose()
+
+
 class Store:
     def __init__(self, data_dir: Path) -> None:
         self._screenshots = data_dir / "screenshots"
         self._screenshots.mkdir(parents=True, exist_ok=True)
+        upgrade_exclusively(data_dir)
         self._engine: Engine = create_engine(database_url(data_dir))
-        with self._engine.begin() as connection:
-            upgrade(connection)
 
     # テストケース
 

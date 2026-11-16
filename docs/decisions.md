@@ -13,7 +13,7 @@
 - **表と並びは変えない。** 新しい順は、いままでどおり rowid の逆（S4）。並べる列を足すと、表の形が変わるため。
 - **出力は stderr。** MCP は stdout を通り道に使うので、Alembic の出力をそこに出さない。
 - **alembic.ini は英数字だけ。** Windows では、Alembic が設定ファイルを日本語の文字コード（cp932）で読み、UTF-8 の日本語で落ちるため。説明は README に書く。
-- REST と MCP が別のプロセスで同時に立ち上がると、二つが同時に当てようとすることがある。MCP を REST と同じプロセスにする（qata-server#14）と起きなくなるので、ここでは手当てしない。
+- **当てる間は、SQLite のファイルを排他で握る。** REST と MCP が別のプロセスで同時に立ち上がると、二つが同じマイグレーションを当てようとして、片方が落ちる（別の AI のレビューで見つかった。前の作りは `CREATE TABLE IF NOT EXISTS` で落ちなかった）。`BEGIN EXCLUSIVE` で一つずつにし、あとから来たほうは待ってから版を読む。MCP を REST と同じプロセスにしても（qata-server#14）、マイグレーションを足すたびに起きうるので、ここで手当てする。
 
 ## S10. 設定は settings.py の型で読む
 
@@ -59,7 +59,7 @@
 - 結果は structuredContent に入れ、同じものを JSON の文字でも返す（structuredContent を読まないクライアントのため）。
 - 道具の呼び出しはスレッドで動かす。`run_testcase` は実行が終わるまで待つため。
 - 立ち上げは stdio（`uv run qata-server-mcp`）。デモのクライアント（Claude Desktop か Claude Code か）は決まっていないが、stdio はどちらでも使える。Streamable HTTP で REST と同じプロセスに載せる形は、要るときに足す。
-- REST と MCP は別のプロセスになるので、同じ `QATA_DATA_DIR` を指して、同じ SQLite とスクショを見る。Store は呼ぶたびにつなぐ（S4）ので、二つのプロセスから使ってよい。
+- REST と MCP は別のプロセスになるので、同じ `QATA_DATA_DIR` を指して、同じ SQLite とスクショを見る。SQLite のファイルは二つのプロセスから開いてよい。マイグレーションを当てるのは一つずつ（S11）。
 - 「MCP の道具が mcp-tools.json と合う」は、同じプロセスの中でつないだ MCP のクライアントから確かめる。
   - 名前と説明が同じ。どの形にも `$ref` が残らず、JSON Schema として正しい。
   - 展開した inputSchema が、契約の例を通し、確認事項のないもの・ステップのないものをはじく（契約と同じ判定）。
