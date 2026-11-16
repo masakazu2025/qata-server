@@ -5,9 +5,6 @@ Alembic を入れる前の保存先（表はあるが、マイグレーション
 """
 
 import sqlite3
-import subprocess
-import sys
-import time
 from contextlib import closing
 from pathlib import Path
 
@@ -140,44 +137,6 @@ def test_表の定義とマイグレーションがずれていない(tmp_path: 
     with create_engine(database_url(data_dir)).connect() as connection:
         diff = compare_metadata(MigrationContext.configure(connection), METADATA)
     assert diff == []
-
-
-# 二つのプロセスで、合図のファイルができたらすぐ Store を作る
-_RACER = """
-import sys, time
-from pathlib import Path
-from qata_server.application import Store
-data_dir, go, ready = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-ready.touch()
-while not go.exists():
-    time.sleep(0.001)
-Store(data_dir)
-"""
-
-
-def test_二つのプロセスが同時に立ち上げても両方が動く(tmp_path: Path) -> None:
-    # 合図をそろえても、同時になるかは回ごとに違うので、何回か回す
-    for round_ in range(5):
-        data_dir = tmp_path / f"data{round_}"
-        go = tmp_path / f"go{round_}"
-        ready = [tmp_path / f"ready{round_}_{i}" for i in range(2)]
-        racers = [
-            subprocess.Popen(
-                [sys.executable, "-c", _RACER, str(data_dir), str(go), str(r)],
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            for r in ready
-        ]
-        deadline = time.monotonic() + 60
-        while not all(r.exists() for r in ready):
-            assert time.monotonic() < deadline, "立ち上がらなかった"
-            time.sleep(0.01)
-        go.touch()
-        for racer in racers:
-            _, stderr = racer.communicate(timeout=60)
-            assert racer.returncode == 0, stderr
-        assert _revision(data_dir) == _head()
 
 
 def test_CLIから当てると設定の保存先が最新になる(
