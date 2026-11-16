@@ -42,7 +42,7 @@ uv run python scripts/generate_contracts.py
 uv run qata-server
 ```
 
-`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは、下の「設定」の環境変数を使います。
+`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。同じプロセスが、web 用の REST と、AI 用の MCP（`/mcp`、下の「MCP で使う」）の両方に答えます。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは、下の「設定」の環境変数を使います。
 
 ## 設定
 
@@ -65,13 +65,13 @@ uv run qata-server
 $env:QATA_PORT = '9000'; $env:QATA_DATA_DIR = 'C:\qata-data'; uv run qata-server
 ```
 
-ほかに渡しているところ：web の端から端までのテスト（qata-web の `playwright.config.ts`）、CI（`.github/workflows/ci.yml`）、MCP の登録（下の `claude mcp add -e`）。
+ほかに渡しているところ：web の端から端までのテスト（qata-web の `playwright.config.ts`）、CI（`.github/workflows/ci.yml`）。
 
 環境変数を読むのは `src/qata_server/settings.py`（pydantic-settings）だけです。項目を足すときは、ここに足します。
 
 ## 表の形を変える
 
-保存は SQLite で、表は `src/qata_server/application/store.py` に SQLAlchemy で定義しています。表の形の変更は、Alembic のマイグレーション（`src/qata_server/migrations/versions/`）で記録します。server は立ち上げるとき（REST も MCP も）に、マイグレーションを最新まで当てます。手元の保存先のデータは、そのまま残ります。
+保存は SQLite で、表は `src/qata_server/application/store.py` に SQLAlchemy で定義しています。表の形の変更は、Alembic のマイグレーション（`src/qata_server/migrations/versions/`）で記録します。server は立ち上げるときに、マイグレーションを最新まで当てます。手元の保存先のデータは、そのまま残ります。
 
 表の形を変えるときは、次の順に進めます。
 
@@ -91,14 +91,22 @@ $env:QATA_PORT = '9000'; $env:QATA_DATA_DIR = 'C:\qata-data'; uv run qata-server
 
 ## MCP で使う
 
-AI（MCP のクライアント）からは、stdio で立ち上げます。道具は親の `mcp-tools.json` のとおりです。
+AI（MCP のクライアント）からは、立ち上げた server の `/mcp` に Streamable HTTP でつなぎます（既定では `http://127.0.0.1:8000/mcp`）。道具は親の `mcp-tools.json` のとおりです。MCP のためだけに別のプロセスは立ち上げません。先に `uv run qata-server` で server を立ち上げておきます。
+
+たとえば Claude Code では次のように足します。
 
 ```
-uv run --directory <qata-server の場所> qata-server-mcp
+claude mcp add --transport http qata http://127.0.0.1:8000/mcp
 ```
 
-REST の server と同じテストケースや実行の結果を見るには、`QATA_DATA_DIR` を同じ場所（絶対パス）にします。たとえば Claude Code では次のように足します。
+プロジェクトの `.mcp.json` に書くときは次の形です。
 
+```json
+{
+  "mcpServers": {
+    "qata": { "type": "http", "url": "http://127.0.0.1:8000/mcp" }
+  }
+}
 ```
-claude mcp add qata -e QATA_DATA_DIR=<保存先> -- uv run --directory <qata-server の場所> qata-server-mcp
-```
+
+server を手元（`127.0.0.1`・`localhost`）で待ち受けるときは、MCP の道に DNS rebinding の守りが入り、ほかの名前やブラウザーの別のサイトからの呼び出しは断ります。
