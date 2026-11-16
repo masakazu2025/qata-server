@@ -87,7 +87,7 @@ $env:QATA_PORT = '9000'; $env:QATA_DATA_DIR = 'C:\qata-data'; uv run qata-server
 4. `uv run pytest` を回す。表の定義とマイグレーションがずれていないこと、古い保存先を読めることを確かめます（`tests/application/test_store.py`）。
 5. server を立ち上げ直すと、新しいマイグレーションが当たる。
 
-Alembic の CLI の設定は `alembic.ini` です。Windows では日本語を読めないので、この設定ファイルには英数字だけを書きます。
+書き出したファイルには、`ruff check --fix` と `ruff format` が自動でかかります（`alembic.ini` の `post_write_hooks`）。Alembic の CLI の設定は `alembic.ini` です。Windows では日本語を読めないので、この設定ファイルには英数字だけを書きます。
 
 ## MCP で使う
 
