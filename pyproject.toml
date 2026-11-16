@@ -49,7 +49,6 @@ select = ["E", "F", "W", "I", "B", "UP"]
 
 [project.scripts]
 qata-server = "qata_server.main:serve"
-qata-server-mcp = "qata_server.main:serve_mcp"
 
 [tool.importlinter]
 root_package = "qata_server"

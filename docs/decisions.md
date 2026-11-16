@@ -4,16 +4,25 @@
 
 ---
 
+## S12. MCP は Streamable HTTP にして、REST と同じプロセスに載せる
+
+- 決めた人：AI（同じプロセスにすることは親の D43）　レビュー：未（人のレビューは要らない。あとで変えてよい）
+- **道は `/mcp`。** `main.py` の `build` で、MCP の SDK の `streamable_http_app` が作る道を FastAPI の道に足し、SDK のセッションの管理を FastAPI の lifespan で回す。REST と MCP は同じ Service（同じ Store・同じ runner への道具）を使う。MCP の道は FastAPI の道ではないので、OpenAPI には出ず、openapi.yaml との突き合わせは変わらない。
+- **stdio の入口（`qata-server-mcp`）は消す。** 残すと、二つのプロセスから runner に命令を送れる形が残り、まとめて流す・進み具合を見るための実行の待ち行列を、一か所に持てないため（qata-server#14）。MCP のクライアントは、先に立ち上げた server に HTTP でつなぐ。
+- **セッションは SDK の既定のまま（状態あり、応答は SSE）。** Claude Code も TypeScript の SDK もそのままつながる。困ってから変える。
+- **DNS rebinding の守りは SDK に任せる。** 待ち受ける場所（`QATA_HOST`）を渡すと、手元（`127.0.0.1` など）のときは SDK が Host と Origin を確かめる。手元でないときは守りが入らないが、いまは手元でしか使わない。
+- 「一つのプロセスで REST と MCP の両方に答える」は、`qata-server` を本当に立ち上げて確かめる（`tests/mcp/mcp.feature`）。REST の `/apps`、MCP の道具の一覧と `list_apps`、ほかの名前で届いた呼び出しを断ること。ほかの MCP のシナリオは、いままでどおり同じプロセスの中でつなぐ。
+
 ## S11. 保存は SQLAlchemy の Core と Alembic で扱う
 
 - 決めた人：AI（SQLAlchemy 2・Alembic にすることは親の D43）　レビュー：未（人のレビューは要らない。あとで変えてよい）
 - **ORM ではなく Core。** 記録は契約の形の JSON のまま持つので（S4）、行をオブジェクトに写す要がない。表の定義（`store.py` の `METADATA`）は、マイグレーションと突き合わせる正としても使う。
-- **立ち上げるときに、最新まで当てる。** Store を作るときに、つないだ connection を Alembic に渡して当てる。人が手で当てる手順を増やさないため。REST と MCP の両方の立ち上げで当たる。
+- **立ち上げるときに、最新まで当てる。** Store を作るときに、つないだ connection を Alembic に渡して当てる。人が手で当てる手順を増やさないため。server の立ち上げで当たる。
 - **Alembic の前の保存先は、最初のマイグレーションで受ける。** 表はあるが記録がない保存先では、表を作らずに記録だけを付ける。保存先を消さずに、そのまま読めるようにするため。
 - **表と並びは変えない。** 新しい順は、いままでどおり rowid の逆（S4）。並べる列を足すと、表の形が変わるため。
-- **出力は stderr。** MCP は stdout を通り道に使うので、Alembic の出力をそこに出さない。
+- **出力は stderr。** はじめは MCP が stdout を通り道に使っていたため（いまは HTTP、S12）。
 - **alembic.ini は英数字だけ。** Windows では、Alembic が設定ファイルを日本語の文字コード（cp932）で読み、UTF-8 の日本語で落ちるため。説明は README に書く。
-- **当てる間は、SQLite のファイルを排他で握る。** REST と MCP が別のプロセスで同時に立ち上がると、二つが同じマイグレーションを当てようとして、片方が落ちる（別の AI のレビューで見つかった。前の作りは `CREATE TABLE IF NOT EXISTS` で落ちなかった）。`BEGIN EXCLUSIVE` で一つずつにし、あとから来たほうは待ってから版を読む。MCP を REST と同じプロセスにすると（qata-server#14）、この場面はなくなる。残るのは、server を二つ同じ保存先で立ち上げるときと、立ち上げと CLI の `alembic upgrade` がぶつかるときだけ。どちらも普通の使い方ではないが、手当ては小さいので残す。
+- **当てる間は、SQLite のファイルを排他で握る。** REST と MCP が別のプロセスで同時に立ち上がると、二つが同じマイグレーションを当てようとして、片方が落ちる（別の AI のレビューで見つかった。前の作りは `CREATE TABLE IF NOT EXISTS` で落ちなかった）。`BEGIN EXCLUSIVE` で一つずつにし、あとから来たほうは待ってから版を読む。MCP を REST と同じプロセスにしたので（S12）、この場面はなくなった。残るのは、server を二つ同じ保存先で立ち上げるときと、立ち上げと CLI の `alembic upgrade` がぶつかるときだけ。どちらも普通の使い方ではないが、手当ては小さいので残す。
 - **同時に立ち上げるテストは置かない。** 排他が効かなくなっても、普通でない場面で立ち上げが一度落ちるだけで、データは失わず、結果も誤らない（親の findings.md の基準で、どちらも「いいえ」）。二つのプロセスで試すテストは 12 秒かかり、見合わない。作ったときに、排他を外すと落ち、入れると通ることは確かめた（人、2026-11-16）。
 
 ## S10. 設定は settings.py の型で読む
@@ -23,7 +32,7 @@
   - `Settings`：立ち上げの設定（`QATA_DATA_DIR`・`QATA_RUNNER_URL`・`QATA_HOST`・`QATA_PORT`）
   - `ParentSettings`：親の契約の場所（`QATA_PARENT_DIR`）
   - 二つに分けたのは、契約を読むところが、関係のない立ち上げの設定の誤り（数でない `QATA_PORT` など）で巻き添えに落ちないようにするため（レビューの指摘）。
-- `main.py` の組み立て（`build`・`build_service`）は `Settings` を受け取る。立ち上げ（`serve`・`serve_mcp`）が一度だけ `Settings()` を作る。
+- `main.py` の組み立て（`build`・`build_service`）は `Settings` を受け取る。立ち上げ（`serve`）が一度だけ `Settings()` を作る。
 - 親の契約の場所は、契約の判定（`contract_check.py`）と型の生成（`scripts/generate_contracts.py`）が、読み込んだときに `ParentSettings().parent_dir` から取る。判定の道具はプロセスの間使い回していて、受け取る形にすると Service や MCP まで通すことになり、いまは得がないため。
 - `settings.py` は依存の層で、契約の型と同じ一番下に置く。application からも読めるようにするため。
 - 空の環境変数は、置いていないものとして扱う（前の `QATA_PARENT_DIR` と同じ）。ほかの設定も、空なら既定値になる。数でない `QATA_PORT` は、立ち上げる前に誤りにする。
@@ -59,13 +68,12 @@
 - 道具のエラー（Service のエラーを含む）は、`isError` にして、契約の `error_response` の形を文字で返す。`code` は REST と同じ（S5）。
 - 結果は structuredContent に入れ、同じものを JSON の文字でも返す（structuredContent を読まないクライアントのため）。
 - 道具の呼び出しはスレッドで動かす。`run_testcase` は実行が終わるまで待つため。
-- 立ち上げは stdio（`uv run qata-server-mcp`）。デモのクライアント（Claude Desktop か Claude Code か）は決まっていないが、stdio はどちらでも使える。Streamable HTTP で REST と同じプロセスに載せる形は、要るときに足す。
-- REST と MCP は別のプロセスになるので、同じ `QATA_DATA_DIR` を指して、同じ SQLite とスクショを見る。SQLite のファイルは二つのプロセスから開いてよい。マイグレーションを当てるのは一つずつ（S11）。
+- 立ち上げは、はじめ stdio（`uv run qata-server-mcp`）で、REST とは別のプロセスだった。いまは Streamable HTTP で REST と同じプロセスに載せている（S12）。
 - 「MCP の道具が mcp-tools.json と合う」は、同じプロセスの中でつないだ MCP のクライアントから確かめる。
   - 名前と説明が同じ。どの形にも `$ref` が残らず、JSON Schema として正しい。
   - 展開した inputSchema が、契約の例を通し、確認事項のないもの・ステップのないものをはじく（契約と同じ判定）。
   - 道具の結果が、展開とは別に referencing で `$ref` をたどった契約の outputSchema に通る。クライアントも、server が出す outputSchema で結果を確かめる。
-  - `qata-server-mcp` を立ち上げて stdio でつなぐと、道具がすべて出る。
+  - `qata-server` を立ち上げて HTTP でつなぐと、道具がすべて出る（S12）。
 - 依存の向きは、`mcp_server` を `rest`・`runner_http` と同じ層に置く。
 - `contract_check._registry` を `registry` にして、MCP の入口とテストから使う。
 

@@ -1,11 +1,11 @@
 # language: ja
 機能: MCP の入口
   AI が使う MCP の道具。形の正は親の mcp-tools.json で、server が出す道具がそれと合うことを確かめる。
-  MCP のクライアントは同じプロセスの中でつなぐ。runner は偽物（決まった結果を返す）を使う。
+  MCP は REST と同じプロセスの /mcp で、Streamable HTTP で答える。ほかのシナリオでは、MCP のクライアントは同じプロセスの中でつなぐ。runner は偽物（決まった結果を返す）を使う。
   クライアントは、道具の結果（structuredContent）が、server が出す outputSchema に合うかを自分でも確かめる。
 
-  シナリオ: qata-server-mcp を立ち上げると、stdio で道具を出す
-    ならば qata-server-mcp を立ち上げてつなぐと、mcp-tools.json の道具がすべて出る
+  シナリオ: 一つのプロセスで、REST と MCP（Streamable HTTP）の両方に答える
+    ならば qata-server を立ち上げると、同じプロセスが REST と MCP の両方に答える
 
   シナリオ: 道具の名前と説明が mcp-tools.json と同じ
     ならば 道具の一覧の名前と説明は、mcp-tools.json と同じ

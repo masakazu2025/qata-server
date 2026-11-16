@@ -2,14 +2,18 @@
 
 import json
 import os
+import socket
+import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 import anyio
+import httpx
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
-from mcp import Client, StdioServerParameters
+from mcp import Client
 from pytest_bdd import given, parsers, scenarios, then, when
 from referencing import Resource
 from referencing.jsonschema import DRAFT202012
@@ -107,19 +111,57 @@ def call(mcp: Mcp, ctx, name: str, arguments: dict[str, Any]) -> None:
 # 道具の定義
 
 
-@then("qata-server-mcp を立ち上げてつなぐと、mcp-tools.json の道具がすべて出る")
-def stdio_lists_tools(tmp_path: Path) -> None:
-    command = Path(sys.executable).parent / "qata-server-mcp"
-    params = StdioServerParameters(
-        command=str(command),
-        env={**os.environ, "QATA_DATA_DIR": str(tmp_path / "data")},
+@then("qata-server を立ち上げると、同じプロセスが REST と MCP の両方に答える")
+def one_process_answers_rest_and_mcp(tmp_path: Path) -> None:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    base = f"http://127.0.0.1:{port}"
+    process = subprocess.Popen(
+        [str(Path(sys.executable).parent / "qata-server")],
+        env={
+            **os.environ,
+            "QATA_PORT": str(port),
+            "QATA_DATA_DIR": str(tmp_path / "data"),
+        },
     )
+    try:
+        apps = _wait_for_apps(base, process)
+        assert [a["app_id"] for a in apps] == ["calculator"]
 
-    async def go():
-        async with Client(params) as client:
-            return [t.name for t in (await client.list_tools()).tools]
+        async def go():
+            async with Client(f"{base}/mcp") as client:
+                names = [t.name for t in (await client.list_tools()).tools]
+                return names, await client.call_tool("list_apps", {})
 
-    assert anyio.run(go) == [t["name"] for t in contract_tools()]
+        names, result = anyio.run(go)
+        assert names == [t["name"] for t in contract_tools()]
+        assert not result.is_error
+        assert result.structured_content == {"apps": apps}
+
+        # 手元で待ち受けるので、ほかの名前で届いた MCP の呼び出しは断る（DNS rebinding）
+        foreign = httpx.post(
+            f"{base}/mcp", headers={"Host": "attacker.example"}, json={}, timeout=5
+        )
+        assert foreign.status_code == 421
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+
+def _wait_for_apps(base: str, process: subprocess.Popen) -> list[dict[str, Any]]:
+    """立ち上がるまで REST の /apps を読み直す。"""
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        assert process.poll() is None, "qata-server が立ち上がる前に終わった"
+        try:
+            response = httpx.get(f"{base}/apps", timeout=1)
+        except httpx.TransportError:
+            time.sleep(0.2)
+            continue
+        assert response.status_code == 200
+        return response.json()
+    raise AssertionError("qata-server が 30 秒で立ち上がらなかった")
 
 
 @then("道具の一覧の名前と説明は、mcp-tools.json と同じ")
