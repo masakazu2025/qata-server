@@ -69,6 +69,26 @@ $env:QATA_PORT = '9000'; $env:QATA_DATA_DIR = 'C:\qata-data'; uv run qata-server
 
 環境変数を読むのは `src/qata_server/settings.py`（pydantic-settings）だけです。項目を足すときは、ここに足します。
 
+## 表の形を変える
+
+保存は SQLite で、表は `src/qata_server/application/store.py` に SQLAlchemy で定義しています。表の形の変更は、Alembic のマイグレーション（`src/qata_server/migrations/versions/`）で記録します。server は立ち上げるとき（REST も MCP も）に、マイグレーションを最新まで当てます。手元の保存先のデータは、そのまま残ります。
+
+表の形を変えるときは、次の順に進めます。
+
+1. `store.py` の表の定義を変える。
+2. マイグレーションを一つ足す。いまの保存先（`QATA_DATA_DIR`、既定は `./data`）と見比べて、差を書き出します。
+
+   ```
+   uv run alembic upgrade head
+   uv run alembic revision --autogenerate -m "<何を変えるか>"
+   ```
+
+3. できたファイル（`versions/<番号>_<何を変えるか>.py`）を読み、`upgrade` と `downgrade` を確かめて直す。書き出しは表と列の増減までで、もうある記録の JSON の中身を新しい形に直すことは、手で書きます。番号は、前の番号の次にします（`--rev-id 0002` で決められます）。
+4. `uv run pytest` を回す。表の定義とマイグレーションがずれていないこと、古い保存先を読めることを確かめます（`tests/application/test_store.py`）。
+5. server を立ち上げ直すと、新しいマイグレーションが当たる。
+
+Alembic の CLI の設定は `alembic.ini` です。Windows では日本語を読めないので、この設定ファイルには英数字だけを書きます。
+
 ## MCP で使う
 
 AI（MCP のクライアント）からは、stdio で立ち上げます。道具は親の `mcp-tools.json` のとおりです。
