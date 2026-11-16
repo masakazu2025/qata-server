@@ -18,7 +18,7 @@ pull request と main への push のたびに、GitHub Actions（`.github/workf
 
 ```
 uv sync
-uv run pytest          # 契約・application・REST・MCP・依存の向き（import-linter）
+uv run pytest          # 契約・application・REST・MCP・設定・依存の向き（import-linter）
 uv run ruff check
 uv run ruff format --check
 uv run pyright         # 型（契約から生成した型は報告から外す）
@@ -42,7 +42,32 @@ uv run python scripts/generate_contracts.py
 uv run qata-server
 ```
 
-`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは環境変数 `QATA_HOST`・`QATA_PORT`・`QATA_RUNNER_URL`・`QATA_DATA_DIR`（保存先、既定は `./data`）を使います。
+`http://127.0.0.1:8000` で待ち受けます（API の一覧は `/docs`）。runner は `http://127.0.0.1:8001` にあるものとします。変えるときは、下の「設定」の環境変数を使います。
+
+## 設定
+
+設定は環境変数で渡します。設定ファイル（`.env` など）は読みません。何も渡さなければ、下の既定値で動きます。変えたい項目だけを、立ち上げるときに渡します。
+
+| 環境変数 | 中身 | 既定値 |
+| --- | --- | --- |
+| `QATA_HOST` | server が待ち受けるアドレス | `127.0.0.1` |
+| `QATA_PORT` | server が待ち受けるポート | `8000` |
+| `QATA_RUNNER_URL` | runner の場所 | `http://127.0.0.1:8001` |
+| `QATA_DATA_DIR` | 保存先のフォルダ（テストケース・実行の結果・スクショ） | `./data`（立ち上げたフォルダから見て） |
+| `QATA_PARENT_DIR` | 親のリポジトリ（契約を読む） | 隣に並べた `../qata` |
+
+- 空の環境変数は、置いていないものとして扱います（既定値になります）。
+- `QATA_PORT` が数でないときは、立ち上げる前に誤りで止まります。
+
+渡し方の例（PowerShell）：
+
+```
+$env:QATA_PORT = '9000'; $env:QATA_DATA_DIR = 'C:\qata-data'; uv run qata-server
+```
+
+ほかに渡しているところ：web の端から端までのテスト（qata-web の `playwright.config.ts`）、CI（`.github/workflows/ci.yml`）、MCP の登録（下の `claude mcp add -e`）。
+
+環境変数を読むのは `src/qata_server/settings.py`（pydantic-settings）だけです。項目を足すときは、ここに足します。
 
 ## MCP で使う
 
