@@ -1,117 +1,150 @@
 """登録したテストケースと実行の結果を SQLite に、スクショを PNG のファイルに保存する。
 
 記録は契約の形（testcase_record・run）の JSON のまま持つ。中を探す要がないため（S4）。
+表は SQLAlchemy の Core で定義し、表の形の変更は Alembic で記録する（S11）。
+Store を作るときに、マイグレーションを最新まで当てる。
 """
 
 import re
-import sqlite3
+import sys
 import uuid
-from collections.abc import Iterator
-from contextlib import closing, contextmanager
 from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import (
+    Column,
+    Connection,
+    Engine,
+    MetaData,
+    Table,
+    Text,
+    create_engine,
+    delete,
+    literal_column,
+    select,
+)
+from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.engine import URL
 
 from qata_server.contracts.server_schema import Run, TestcaseRecord
 
 _ID = re.compile(r"^[a-z]+_[0-9a-f]{32}$")
 
-_TABLES = """
-CREATE TABLE IF NOT EXISTS testcases (
-    id TEXT PRIMARY KEY,
-    app_id TEXT NOT NULL,
-    record TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS runs (
-    id TEXT PRIMARY KEY,
-    testcase_id TEXT NOT NULL,
-    record TEXT NOT NULL
-);
-"""
+# src/qata_server/application/store.py から見て、src/qata_server/migrations
+MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
+
+# 表の形の正。変えたら、マイグレーションを一つ足す（README の「表の形を変える」）
+METADATA = MetaData()
+
+testcases = Table(
+    "testcases",
+    METADATA,
+    Column("id", Text, primary_key=True),
+    Column("app_id", Text, nullable=False),
+    Column("record", Text, nullable=False),
+)
+
+runs = Table(
+    "runs",
+    METADATA,
+    Column("id", Text, primary_key=True),
+    Column("testcase_id", Text, nullable=False),
+    Column("record", Text, nullable=False),
+)
+
+# 新しい順は、入れた順（SQLite の rowid）の逆（S4）
+_NEWEST_FIRST = literal_column("rowid").desc()
 
 
 def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex}"
 
 
+def database_url(data_dir: Path) -> URL:
+    return URL.create("sqlite", database=str(data_dir / "qata.sqlite3"))
+
+
+def upgrade(connection: Connection) -> None:
+    """マイグレーションを最新まで当てる。"""
+    # 出力は stderr に寄せる。MCP は stdout を通り道に使うため
+    config = Config(stdout=sys.stderr)
+    config.set_main_option("script_location", str(MIGRATIONS))
+    config.attributes["connection"] = connection
+    command.upgrade(config, "head")
+
+
 class Store:
     def __init__(self, data_dir: Path) -> None:
-        self._db = data_dir / "qata.sqlite3"
         self._screenshots = data_dir / "screenshots"
         self._screenshots.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.executescript(_TABLES)
-
-    @contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
-        # 呼ぶたびにつなぐ。REST から別のスレッドで呼ばれても困らないように
-        with closing(sqlite3.connect(self._db)) as db, db:
-            yield db
+        self._engine: Engine = create_engine(database_url(data_dir))
+        with self._engine.begin() as connection:
+            upgrade(connection)
 
     # テストケース
 
     def save_testcase(self, record: TestcaseRecord) -> None:
-        with self._connect() as db:
-            db.execute(
-                "INSERT INTO testcases (id, app_id, record) VALUES (?, ?, ?)"
-                " ON CONFLICT (id) DO UPDATE SET record = excluded.record",
-                (
-                    record.id.root,
-                    record.testcase.app_id.root,
-                    record.model_dump_json(exclude_none=True),
-                ),
-            )
+        statement = insert(testcases).values(
+            id=record.id.root,
+            app_id=record.testcase.app_id.root,
+            record=record.model_dump_json(exclude_none=True),
+        )
+        # 承認で上書きするときも、行は残すので並びは変わらない
+        statement = statement.on_conflict_do_update(
+            index_elements=[testcases.c.id],
+            set_={"record": statement.excluded.record},
+        )
+        with self._engine.begin() as db:
+            db.execute(statement)
 
     def get_testcase(self, testcase_id: str) -> TestcaseRecord | None:
-        with self._connect() as db:
-            row = db.execute(
-                "SELECT record FROM testcases WHERE id = ?", (testcase_id,)
-            ).fetchone()
-        return TestcaseRecord.model_validate_json(row[0]) if row else None
+        with self._engine.connect() as db:
+            record = db.scalar(
+                select(testcases.c.record).where(testcases.c.id == testcase_id)
+            )
+        return TestcaseRecord.model_validate_json(record) if record else None
 
     def list_testcases(self, app_id: str | None = None) -> list[TestcaseRecord]:
         """新しい順。"""
-        with self._connect() as db:
-            rows = db.execute(
-                "SELECT record FROM testcases WHERE ? IS NULL OR app_id = ?"
-                " ORDER BY rowid DESC",
-                (app_id, app_id),
-            ).fetchall()
-        return [TestcaseRecord.model_validate_json(r[0]) for r in rows]
+        query = select(testcases.c.record).order_by(_NEWEST_FIRST)
+        if app_id is not None:
+            query = query.where(testcases.c.app_id == app_id)
+        with self._engine.connect() as db:
+            records = db.scalars(query).all()
+        return [TestcaseRecord.model_validate_json(r) for r in records]
 
     def delete_testcase(self, testcase_id: str) -> bool:
         """消したら True。実行の結果は残す。"""
-        with self._connect() as db:
-            cursor = db.execute("DELETE FROM testcases WHERE id = ?", (testcase_id,))
-        return cursor.rowcount > 0
+        with self._engine.begin() as db:
+            result = db.execute(delete(testcases).where(testcases.c.id == testcase_id))
+        return result.rowcount > 0
 
     # 実行の結果
 
     def save_run(self, run: Run) -> None:
-        with self._connect() as db:
+        with self._engine.begin() as db:
             db.execute(
-                "INSERT INTO runs (id, testcase_id, record) VALUES (?, ?, ?)",
-                (
-                    run.id.root,
-                    run.testcase_id.root,
-                    run.model_dump_json(exclude_none=True),
-                ),
+                runs.insert().values(
+                    id=run.id.root,
+                    testcase_id=run.testcase_id.root,
+                    record=run.model_dump_json(exclude_none=True),
+                )
             )
 
     def get_run(self, run_id: str) -> Run | None:
-        with self._connect() as db:
-            row = db.execute(
-                "SELECT record FROM runs WHERE id = ?", (run_id,)
-            ).fetchone()
-        return Run.model_validate_json(row[0]) if row else None
+        with self._engine.connect() as db:
+            record = db.scalar(select(runs.c.record).where(runs.c.id == run_id))
+        return Run.model_validate_json(record) if record else None
 
     def list_runs(self, testcase_id: str | None = None) -> list[Run]:
         """新しい順。"""
-        with self._connect() as db:
-            rows = db.execute(
-                "SELECT record FROM runs WHERE ? IS NULL OR testcase_id = ?"
-                " ORDER BY rowid DESC",
-                (testcase_id, testcase_id),
-            ).fetchall()
-        return [Run.model_validate_json(r[0]) for r in rows]
+        query = select(runs.c.record).order_by(_NEWEST_FIRST)
+        if testcase_id is not None:
+            query = query.where(runs.c.testcase_id == testcase_id)
+        with self._engine.connect() as db:
+            records = db.scalars(query).all()
+        return [Run.model_validate_json(r) for r in records]
 
     # スクショ
 
