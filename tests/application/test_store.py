@@ -14,11 +14,16 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from support import load_example
 
 from qata_server.application import Store
-from qata_server.application.store import METADATA, MIGRATIONS, database_url
+from qata_server.application.store import (
+    METADATA,
+    MIGRATIONS,
+    database_url,
+    testcase_tags,
+)
 
 # Test で始まる名前は pytest がテストの class として集めるので、別の名前で読む
 from qata_server.contracts.server_schema import Run
@@ -154,6 +159,33 @@ def test_上書きするとタグも記録に合わせる(tmp_path: Path) -> Non
 
     assert store.list_testcases(tags=["機能:加算"]) == []
     assert len(store.list_testcases(tags=["機能:減算"])) == 1
+
+
+def test_消すとタグの組も消える(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    store = Store(data_dir)
+    tagged = _testcase(1)
+    store.save_testcase(tagged)
+
+    assert store.delete_testcase(tagged.id.root)
+
+    with create_engine(database_url(data_dir)).connect() as connection:
+        left = connection.scalars(
+            select(testcase_tags.c.tag).where(
+                testcase_tags.c.testcase_id == tagged.id.root
+            )
+        ).all()
+    assert left == []
+
+
+def test_タグをとても多く並べても絞り込める(tmp_path: Path) -> None:
+    # 並びの数に上限はない（親の D50）。1000 個でも誤りにならない
+    store = Store(tmp_path / "data")
+    store.save_testcase(_testcase(1))
+    many = ["機能:加算", *(f"タグ{i}" for i in range(999))]
+
+    assert store.list_testcases(tags=many) == []
+    assert len(store.list_testcases(tags=many[:1])) == 1
 
 
 def test_上書きしても並びは変わらない(tmp_path: Path) -> None:

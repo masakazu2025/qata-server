@@ -25,6 +25,7 @@ from sqlalchemy import (
     create_engine,
     delete,
     event,
+    func,
     literal_column,
     select,
 )
@@ -161,12 +162,17 @@ class Store:
         query = select(testcases.c.record).order_by(_NEWEST_FIRST)
         if app_id is not None:
             query = query.where(testcases.c.app_id == app_id)
-        # 重なりは一つと見なす（契約の tag_filter）。空なら絞り込まない
-        for tag in set(tags):
-            having = select(testcase_tags.c.testcase_id).where(
-                testcase_tags.c.tag == tag
+        # 重なりは一つと見なす（契約の tag_filter）。空なら絞り込まない。
+        # タグがいくつでも一つの問い合わせにする（重ねると SQLite の深さの上限に届く）
+        wanted = set(tags)
+        if wanted:
+            having_all = (
+                select(testcase_tags.c.testcase_id)
+                .where(testcase_tags.c.tag.in_(wanted))
+                .group_by(testcase_tags.c.testcase_id)
+                .having(func.count() == len(wanted))
             )
-            query = query.where(testcases.c.id.in_(having))
+            query = query.where(testcases.c.id.in_(having_all))
         with self._engine.connect() as db:
             records = db.scalars(query).all()
         return [TestcaseRecord.model_validate_json(r) for r in records]
