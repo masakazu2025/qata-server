@@ -12,6 +12,7 @@ from typing import Any
 import anyio
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator, FormatChecker
 from mcp import Client
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -22,6 +23,7 @@ from support import FakeRunner, load_example
 from qata_server.application import Service, Store, load_apps
 from qata_server.application.contract_check import problems, registry
 from qata_server.mcp_server import MCP_TOOLS, create_server
+from qata_server.rest import create_app
 
 scenarios("mcp.feature")
 
@@ -84,8 +86,19 @@ def runner() -> FakeRunner:
 
 
 @pytest.fixture
-def mcp(tmp_path: Path, runner: FakeRunner) -> Mcp:
-    return Mcp(Service(load_apps(), Store(tmp_path / "data"), runner))
+def service(tmp_path: Path, runner: FakeRunner) -> Service:
+    return Service(load_apps(), Store(tmp_path / "data"), runner)
+
+
+@pytest.fixture
+def mcp(service: Service) -> Mcp:
+    return Mcp(service)
+
+
+@pytest.fixture
+def rest(service: Service) -> TestClient:
+    """MCP と同じ Service を使う REST の入口。二つの答えを比べるため。"""
+    return TestClient(create_app(service))
 
 
 @pytest.fixture
@@ -266,6 +279,26 @@ def call_with_example(mcp: Mcp, ctx, need: str, name: str) -> None:
     call(mcp, ctx, name, {"testcase": testcase})
 
 
+@given(parsers.parse("タグ {tags} の例を、道具 register_testcase で登録した"))
+def register_tagged(mcp: Mcp, ctx, tags: str) -> None:
+    testcase = {**load_example("testcase.add.json"), "tags": json.loads(tags)}
+    call(mcp, ctx, "register_testcase", {"testcase": testcase})
+    assert ctx["result"].structured_content["registered"]
+
+
+@given("タグのない例を、道具 register_testcase で登録した")
+def register_untagged(mcp: Mcp, ctx) -> None:
+    testcase = load_example("testcase.add.json")
+    del testcase["tags"]
+    call(mcp, ctx, "register_testcase", {"testcase": testcase})
+    assert ctx["result"].structured_content["registered"]
+
+
+@when(parsers.parse("道具 list_testcases を tags {tags} で呼ぶ"))
+def call_with_tags(mcp: Mcp, ctx, tags: str) -> None:
+    call(mcp, ctx, "list_testcases", {"tags": json.loads(tags)})
+
+
 @when(parsers.parse('部品を "{part}" にした例で、道具 "{name}" を呼ぶ'))
 def call_with_unknown_part(mcp: Mcp, ctx, part: str, name: str) -> None:
     testcase = load_example("testcase.add.json")
@@ -304,6 +337,37 @@ def result_value(ctx, key: str, value: str) -> None:
         assert len(structured[key]) == int(value.removesuffix(" 件"))
     else:
         assert structured[key] == json.loads(value)
+
+
+@then(
+    parsers.parse("REST の /testcases を tag {tags} で読むと、同じ {count:d} 件を返す")
+)
+def same_as_rest(rest: TestClient, ctx, tags: str, count: int) -> None:
+    response = rest.get("/testcases", params={"tag": json.loads(tags)})
+    assert response.status_code == 200
+    testcases = ctx["result"].structured_content["testcases"]
+    assert response.json() == testcases
+    assert len(testcases) == count
+
+
+@then(parsers.parse("REST の /testcases を引数なしで読むと、同じ {count:d} 件を返す"))
+def same_as_rest_unfiltered(rest: TestClient, ctx, count: int) -> None:
+    response = rest.get("/testcases")
+    assert response.status_code == 200
+    assert response.json() == ctx["result"].structured_content["testcases"]
+    assert len(response.json()) == count
+
+
+@then("タグのない記録には、REST でも MCP でも tags が出ない")
+def no_tags_in_untagged(rest: TestClient, ctx) -> None:
+    untagged = [
+        r
+        for r in ctx["result"].structured_content["testcases"]
+        if "tags" not in r["testcase"]
+    ]
+    assert len(untagged) == 1
+    response = rest.get(f"/testcases/{untagged[0]['id']}")
+    assert "tags" not in response.json()["testcase"]
 
 
 @then(parsers.parse('問題の code は "{code}"'))

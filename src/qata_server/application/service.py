@@ -127,8 +127,11 @@ class Service:
             {"registered": True, "testcase_record": record, "errors": []}
         )
 
-    def list_testcases(self, app_id: str | None = None) -> list[TestcaseRecord]:
-        return self._store.list_testcases(app_id)
+    def list_testcases(
+        self, app_id: str | None = None, tags: list[str] | None = None
+    ) -> list[TestcaseRecord]:
+        """tags を渡すと、それを全部持つものだけ。None と空の並びは絞り込まない。"""
+        return self._store.list_testcases(app_id, tags or ())
 
     def get_testcase(self, testcase_id: str) -> TestcaseRecord:
         record = self._store.get_testcase(testcase_id)

@@ -34,6 +34,10 @@
       | testcase.add.json     | /steps/0/type          | "double_click"                       | testcase.schema.json                      | ないアクション         |
       | testcase.add.json     | /app_id                | "Calculator"                         | testcase.schema.json                      | app_id に大文字        |
       | testcase.add.json     | /extra                 | 1                                    | testcase.schema.json                      | 契約にない項目         |
+      | testcase.add.json     | /tags                  | [""]                                 | testcase.schema.json                      | 空の文字のタグ         |
+      | testcase.add.json     | /tags                  | ["機能:加算", "機能:加算"]           | testcase.schema.json                      | 同じタグの重なり       |
+      | testcase.add.json     | /tags                  | ["あああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ"] | testcase.schema.json                      | 101 文字のタグ         |
+      | testcase.add.json     | /tags                  | "機能:加算"                          | testcase.schema.json                      | 並びでないタグ         |
       | calculator.parts.json | /parts                 | {}                                   | part-dictionary.schema.json               | 部品が一つもない       |
       | calculator.parts.json | /parts/表示/actions    | ["read"]                             | part-dictionary.schema.json               | ないアクション         |
       | runner-command.json   | /steps/2/key           | "Ctrl+C"                             | runner-command.schema.json                | 同時押しは扱わない     |
@@ -54,6 +58,16 @@
       | testcase.add.json  | /needs_review       | testcase.schema.json      | 人の確認の要否がない           |
       | testcase.add.json  | /steps/4/expected   | testcase.schema.json      | 確認事項に期待する値がない     |
       | runner-result.json | /steps/0/screenshot | runner-result.schema.json | 済んだステップにスクショがない |
+
+  シナリオアウトライン: 省ける項目を消しても、例が形式に通る
+    前提 契約の例 "<ファイル>"
+    もし "<場所>" を消す
+    ならば 契約 "<契約>" に通る
+
+    例:
+      | ファイル             | 場所            | 契約                                      | なぜ                       |
+      | testcase.add.json    | /tags           | testcase.schema.json                      | タグのないテストケース     |
+      | testcase-record.json | /testcase/tags  | server.schema.json#/$defs/testcase_record | タグのないテストケースの記録 |
 
   シナリオアウトライン: 生成した型で契約の例が読める
     前提 契約の例 "<ファイル>"

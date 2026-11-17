@@ -44,6 +44,31 @@
     ならば 結果は契約の outputSchema に通る
     かつ 結果の "testcases" は 1 件
 
+  シナリオアウトライン: タグで絞った一覧は、REST と MCP で同じものを返す
+    前提 タグ ["機能:加算", "設計書:電卓の基本操作"] の例を、道具 register_testcase で登録した
+    かつ タグ ["機能:加算"] の例を、道具 register_testcase で登録した
+    かつ タグのない例を、道具 register_testcase で登録した
+    もし 道具 list_testcases を tags <絞り込み> で呼ぶ
+    ならば 結果は契約の outputSchema に通る
+    かつ REST の /testcases を tag <絞り込み> で読むと、同じ <件数> 件を返す
+
+    例:
+      | 絞り込み                               | 件数 | なぜ                             |
+      | ["機能:加算"]                          | 2    | 一つのタグ                       |
+      | ["機能:加算", "設計書:電卓の基本操作"] | 1    | 全部持つものだけ（AND）          |
+      | ["機能:加算", "機能:加算"]             | 2    | 重なりは一つと見なす             |
+      | ["機能：加算"]                         | 0    | 全角の「：」は半角の絞り込みに出ない |
+      | []                                     | 3    | 空の並びは、指定しないときと同じ |
+
+  シナリオ: MCP の空の tags は、指定しないときと同じ件数で、タグのない記録に tags は出ない
+    前提 タグ ["機能:加算"] の例を、道具 register_testcase で登録した
+    かつ タグのない例を、道具 register_testcase で登録した
+    もし 道具 list_testcases を tags [] で呼ぶ
+    ならば REST の /testcases を引数なしで読むと、同じ 2 件を返す
+    かつ タグのない記録には、REST でも MCP でも tags が出ない
+    もし 道具 "list_testcases" を呼ぶ
+    ならば 結果の "testcases" は 2 件
+
   シナリオ: 検証を通らないものは、登録せずに問題を返す
     もし 部品を "存在しない部品" にした例で、道具 "register_testcase" を呼ぶ
     ならば 結果は契約の outputSchema に通る
@@ -86,4 +111,6 @@
       | get_run             | {"run_id": "run_00000000000000000000000000000000"} | not_found     |
       | get_run             | {}                                             | invalid_arguments |
       | list_apps           | {"extra": 1}                                   | invalid_arguments |
+      | list_testcases      | {"tags": [""]}                                 | invalid_arguments |
+      | list_testcases      | {"tags": "機能:加算"}                          | invalid_arguments |
       | delete_everything   | {}                                             | unknown_tool      |

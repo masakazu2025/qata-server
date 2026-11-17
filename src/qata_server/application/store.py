@@ -1,6 +1,7 @@
 """登録したテストケースと実行の結果を SQLite に、スクショを PNG のファイルに保存する。
 
 記録は契約の形（testcase_record・run）の JSON のまま持つ。中を探す要がないため（S4）。
+ただし、タグは絞り込みに使うので、テストケースとタグの組の表にも持つ（S13）。
 表は SQLAlchemy の Core で定義し、表の形の変更は Alembic で記録する（S11）。
 Store を作るときに、マイグレーションを最新まで当てる。
 """
@@ -8,6 +9,7 @@ Store を作るときに、マイグレーションを最新まで当てる。
 import re
 import sys
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,7 @@ from sqlalchemy import (
     create_engine,
     delete,
     event,
+    func,
     literal_column,
     select,
 )
@@ -45,6 +48,14 @@ testcases = Table(
     Column("id", Text, primary_key=True),
     Column("app_id", Text, nullable=False),
     Column("record", Text, nullable=False),
+)
+
+# 絞り込み用のテストケースとタグの組。正は記録の中のタグで、保存のたびに写す（S13）
+testcase_tags = Table(
+    "testcase_tags",
+    METADATA,
+    Column("testcase_id", Text, primary_key=True),
+    Column("tag", Text, primary_key=True),
 )
 
 runs = Table(
@@ -113,8 +124,10 @@ class Store:
     # テストケース
 
     def save_testcase(self, record: TestcaseRecord) -> None:
+        testcase_id = record.id.root
+        tags = record.testcase.tags.root if record.testcase.tags else []
         statement = insert(testcases).values(
-            id=record.id.root,
+            id=testcase_id,
             app_id=record.testcase.app_id.root,
             record=record.model_dump_json(exclude_none=True),
         )
@@ -125,6 +138,15 @@ class Store:
         )
         with self._engine.begin() as db:
             db.execute(statement)
+            # 上書きのときも、タグの組は記録に合わせて入れ直す
+            db.execute(
+                delete(testcase_tags).where(testcase_tags.c.testcase_id == testcase_id)
+            )
+            if tags:
+                db.execute(
+                    testcase_tags.insert(),
+                    [{"testcase_id": testcase_id, "tag": t.root} for t in tags],
+                )
 
     def get_testcase(self, testcase_id: str) -> TestcaseRecord | None:
         with self._engine.connect() as db:
@@ -133,11 +155,24 @@ class Store:
             )
         return TestcaseRecord.model_validate_json(record) if record else None
 
-    def list_testcases(self, app_id: str | None = None) -> list[TestcaseRecord]:
-        """新しい順。"""
+    def list_testcases(
+        self, app_id: str | None = None, tags: Iterable[str] = ()
+    ) -> list[TestcaseRecord]:
+        """新しい順。tags を渡すと、それを全部持つもの（文字の完全な一致）だけ。"""
         query = select(testcases.c.record).order_by(_NEWEST_FIRST)
         if app_id is not None:
             query = query.where(testcases.c.app_id == app_id)
+        # 重なりは一つと見なす（契約の tag_filter）。空なら絞り込まない。
+        # タグがいくつでも一つの問い合わせにする（重ねると SQLite の深さの上限に届く）
+        wanted = set(tags)
+        if wanted:
+            having_all = (
+                select(testcase_tags.c.testcase_id)
+                .where(testcase_tags.c.tag.in_(wanted))
+                .group_by(testcase_tags.c.testcase_id)
+                .having(func.count() == len(wanted))
+            )
+            query = query.where(testcases.c.id.in_(having_all))
         with self._engine.connect() as db:
             records = db.scalars(query).all()
         return [TestcaseRecord.model_validate_json(r) for r in records]
@@ -146,6 +181,9 @@ class Store:
         """消したら True。実行の結果は残す。"""
         with self._engine.begin() as db:
             result = db.execute(delete(testcases).where(testcases.c.id == testcase_id))
+            db.execute(
+                delete(testcase_tags).where(testcase_tags.c.testcase_id == testcase_id)
+            )
         return result.rowcount > 0
 
     # 実行の結果

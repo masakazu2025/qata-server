@@ -70,6 +70,7 @@ class Testcase(BaseModel):
             min_length=1,
         ),
     ]
+    tags: common_schema.Tags | None = None
     needs_review: Annotated[
         bool,
         Field(

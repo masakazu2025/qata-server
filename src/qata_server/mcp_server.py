@@ -62,7 +62,7 @@ def _handlers(service: Service) -> dict[str, Callable[[dict[str, Any]], Any]]:
         "validate_testcase": lambda a: service.validate_testcase(a["testcase"]),
         "register_testcase": lambda a: service.register_testcase(a["testcase"]),
         "list_testcases": lambda a: {
-            "testcases": service.list_testcases(a.get("app_id"))
+            "testcases": service.list_testcases(a.get("app_id"), a.get("tags"))
         },
         "run_testcase": lambda a: service.run_testcase(a["testcase_id"]),
         "get_run": lambda a: service.get_run(a["run_id"]),

@@ -95,9 +95,15 @@ def register(service: Service, testcase, ctx) -> None:
         ctx["record"] = result.testcase_record
 
 
-def register_example(service: Service, ctx, needs_review: bool) -> None:
+def register_example(
+    service: Service, ctx, needs_review: bool, tags: list[str] | None = None
+) -> None:
+    """契約の例を登録する。tags が None なら、タグのないもの（tags を消す）。"""
     testcase = load_example("testcase.add.json")
     testcase["needs_review"] = needs_review
+    testcase.pop("tags", None)
+    if tags is not None:
+        testcase["tags"] = tags
     result = service.register_testcase(testcase)
     assert result.registered, result.errors
     ctx.setdefault("records", []).append(result.testcase_record)
@@ -112,6 +118,16 @@ def given_needs_review(service: Service, ctx) -> None:
 @given("人の確認が要らないテストケースを登録した")
 def given_no_review(service: Service, ctx) -> None:
     register_example(service, ctx, needs_review=False)
+
+
+@given(parsers.parse("タグ {tags} の、人の確認が{need}テストケースを登録した"))
+def given_tagged(service: Service, ctx, tags: str, need: str) -> None:
+    register_example(service, ctx, needs_review=need == "要る", tags=json.loads(tags))
+
+
+@given(parsers.parse("タグのない、人の確認が{need}テストケースを登録した"))
+def given_untagged(service: Service, ctx, need: str) -> None:
+    register_example(service, ctx, needs_review=need == "要る")
 
 
 @when("承認する")
@@ -193,6 +209,34 @@ def newest_testcase_first(service: Service, ctx, count: int) -> None:
 @then(parsers.parse('アプリ "{app_id}" で絞ったテストケースの一覧は {count:d} 件'))
 def count_of_testcases_by_app(service: Service, app_id: str, count: int) -> None:
     assert len(service.list_testcases(app_id)) == count
+
+
+@then(parsers.parse("タグ {tags} で絞ったテストケースの一覧は {count:d} 件"))
+def count_of_testcases_by_tags(service: Service, tags: str, count: int) -> None:
+    assert len(service.list_testcases(tags=json.loads(tags))) == count
+
+
+@then(
+    parsers.parse(
+        'アプリ "{app_id}" とタグ {tags} で絞ったテストケースの一覧は {count:d} 件'
+    )
+)
+def count_of_testcases_by_app_and_tags(
+    service: Service, app_id: str, tags: str, count: int
+) -> None:
+    assert len(service.list_testcases(app_id, json.loads(tags))) == count
+
+
+@then(parsers.parse("登録したテストケースを取ると、タグは {tags}"))
+def stored_tags(service: Service, ctx, tags: str) -> None:
+    record = dump(service.get_testcase(ctx["record"].id.root))
+    assert record["testcase"]["tags"] == json.loads(tags)
+
+
+@then("登録したテストケースを取ると、tags がない")
+def stored_without_tags(service: Service, ctx) -> None:
+    record = dump(service.get_testcase(ctx["record"].id.root))
+    assert "tags" not in record["testcase"], record
 
 
 @then("登録したテストケースは見つからない")

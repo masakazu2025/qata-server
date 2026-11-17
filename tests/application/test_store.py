@@ -14,11 +14,16 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from support import load_example
 
 from qata_server.application import Store
-from qata_server.application.store import METADATA, MIGRATIONS, database_url
+from qata_server.application.store import (
+    METADATA,
+    MIGRATIONS,
+    database_url,
+    testcase_tags,
+)
 
 # Test で始まる名前は pytest がテストの class として集めるので、別の名前で読む
 from qata_server.contracts.server_schema import Run
@@ -44,6 +49,13 @@ CREATE TABLE IF NOT EXISTS runs (
 def _testcase(n: int) -> Record:
     record = Record.model_validate(load_example("testcase-record.json"))
     return record.model_copy(update={"id": type(record.id)(f"tc_{n:032x}")})
+
+
+def _untagged(n: int) -> Record:
+    """タグを足す前の形の記録（tags がない）。"""
+    data = _testcase(n).model_dump(mode="json", exclude_none=True)
+    del data["testcase"]["tags"]
+    return Record.model_validate(data)
 
 
 def _run(n: int, testcase: Record) -> Run:
@@ -107,6 +119,73 @@ def test_古い保存先の記録を読めて新しい順も変わらない(tmp_
     new_run = _run(2, first)
     store.save_run(new_run)
     assert store.list_runs() == [new_run, old_run]
+
+
+def test_タグを足す前の記録もそのまま読めてタグで絞ると出ない(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    untagged = _untagged(1)
+    _write_old_store(data_dir, [untagged], [])
+
+    store = Store(data_dir)
+
+    read = store.get_testcase(untagged.id.root)
+    assert read == untagged
+    assert read is not None and read.testcase.tags is None
+    assert store.list_testcases() == [untagged]
+    assert store.list_testcases(tags=[]) == [untagged]
+    assert store.list_testcases(tags=["機能:加算"]) == []
+
+
+def test_タグの表を作るときにもうある記録のタグを写す(tmp_path: Path) -> None:
+    # 記録の JSON がタグを持っていれば、タグの表がなくても、当てたあとに絞れる
+    data_dir = tmp_path / "data"
+    tagged, untagged = _testcase(1), _untagged(2)
+    _write_old_store(data_dir, [tagged, untagged], [])
+
+    store = Store(data_dir)
+
+    assert store.list_testcases(tags=["機能:加算"]) == [tagged]
+    assert store.list_testcases(tags=["機能:加算", "設計書:電卓の基本操作"]) == [tagged]
+
+
+def test_上書きするとタグも記録に合わせる(tmp_path: Path) -> None:
+    store = Store(tmp_path / "data")
+    tagged = _testcase(1)
+    store.save_testcase(tagged)
+
+    data = tagged.model_dump(mode="json", exclude_none=True)
+    data["testcase"]["tags"] = ["機能:減算"]
+    store.save_testcase(Record.model_validate(data))
+
+    assert store.list_testcases(tags=["機能:加算"]) == []
+    assert len(store.list_testcases(tags=["機能:減算"])) == 1
+
+
+def test_消すとタグの組も消える(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    store = Store(data_dir)
+    tagged = _testcase(1)
+    store.save_testcase(tagged)
+
+    assert store.delete_testcase(tagged.id.root)
+
+    with create_engine(database_url(data_dir)).connect() as connection:
+        left = connection.scalars(
+            select(testcase_tags.c.tag).where(
+                testcase_tags.c.testcase_id == tagged.id.root
+            )
+        ).all()
+    assert left == []
+
+
+def test_タグをとても多く並べても絞り込める(tmp_path: Path) -> None:
+    # 並びの数に上限はない（親の D50）。1000 個でも誤りにならない
+    store = Store(tmp_path / "data")
+    store.save_testcase(_testcase(1))
+    many = ["機能:加算", *(f"タグ{i}" for i in range(999))]
+
+    assert store.list_testcases(tags=many) == []
+    assert len(store.list_testcases(tags=many[:1])) == 1
 
 
 def test_上書きしても並びは変わらない(tmp_path: Path) -> None:

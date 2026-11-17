@@ -78,6 +78,36 @@ class Point(BaseModel):
     y: Annotated[int, Field(ge=0)]
 
 
+class Tag(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="テストケースに付ける目印一つ。機能・元の設計書などで絞り込むのに使う。「機能:加算」のように「種類:値」で書くのが慣習で、区切りは半角の「:」。慣習は契約では強制しない。全角と半角・大文字と小文字・前後の空白は整えず、別の文字として扱う（「機能：加算」と「機能:加算」は別のタグ）。",
+            examples=["機能:加算", "設計書:電卓の基本操作"],
+            max_length=100,
+            min_length=1,
+        ),
+    ]
+
+
+class Tags(RootModel[list[Tag]]):
+    root: Annotated[
+        list[Tag],
+        Field(
+            description="テストケースに付けるタグの並び。同じタグは二度書かない。順は意味を持たない。"
+        ),
+    ]
+
+
+class TagFilter(RootModel[list[Tag]]):
+    root: Annotated[
+        list[Tag],
+        Field(
+            description="一覧の絞り込みに使うタグの並び。並べたタグを全部持つものだけを返す（AND、文字の完全な一致）。同じタグが重なっていたら一つと見なす。空の並びは、指定しないときと同じで、タグで絞り込まない。"
+        ),
+    ]
+
+
 class Timestamp(RootModel[AwareDatetime]):
     root: Annotated[
         AwareDatetime, Field(description="日時。RFC 3339（タイムゾーン付き）。")
