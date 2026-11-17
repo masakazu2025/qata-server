@@ -5,9 +5,9 @@
 """
 
 import json
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
@@ -119,8 +119,13 @@ def create_app(service: Service) -> FastAPI:
         response_model=list[TestcaseRecord],
         response_model_exclude_none=True,
     )
-    def list_testcases(app_id: str | None = None):
-        return service.list_testcases(app_id)
+    def list_testcases(
+        app_id: str | None = None,
+        tag: Annotated[list[str] | None, Query()] = None,
+    ):
+        # タグは検証しない（ほかの引数と同じく文字列で受ける）。空の文字や長すぎる
+        # タグは、どのテストケースも持たないので、0 件になる
+        return service.list_testcases(app_id, tag)
 
     @app.post(
         "/testcases",

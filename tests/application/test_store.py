@@ -46,6 +46,13 @@ def _testcase(n: int) -> Record:
     return record.model_copy(update={"id": type(record.id)(f"tc_{n:032x}")})
 
 
+def _untagged(n: int) -> Record:
+    """タグを足す前の形の記録（tags がない）。"""
+    data = _testcase(n).model_dump(mode="json", exclude_none=True)
+    del data["testcase"]["tags"]
+    return Record.model_validate(data)
+
+
 def _run(n: int, testcase: Record) -> Run:
     run = Run.model_validate(load_example("run.json"))
     return run.model_copy(
@@ -107,6 +114,46 @@ def test_古い保存先の記録を読めて新しい順も変わらない(tmp_
     new_run = _run(2, first)
     store.save_run(new_run)
     assert store.list_runs() == [new_run, old_run]
+
+
+def test_タグを足す前の記録もそのまま読めてタグで絞ると出ない(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    untagged = _untagged(1)
+    _write_old_store(data_dir, [untagged], [])
+
+    store = Store(data_dir)
+
+    read = store.get_testcase(untagged.id.root)
+    assert read == untagged
+    assert read is not None and read.testcase.tags is None
+    assert store.list_testcases() == [untagged]
+    assert store.list_testcases(tags=[]) == [untagged]
+    assert store.list_testcases(tags=["機能:加算"]) == []
+
+
+def test_タグの表を作るときにもうある記録のタグを写す(tmp_path: Path) -> None:
+    # 記録の JSON がタグを持っていれば、タグの表がなくても、当てたあとに絞れる
+    data_dir = tmp_path / "data"
+    tagged, untagged = _testcase(1), _untagged(2)
+    _write_old_store(data_dir, [tagged, untagged], [])
+
+    store = Store(data_dir)
+
+    assert store.list_testcases(tags=["機能:加算"]) == [tagged]
+    assert store.list_testcases(tags=["機能:加算", "設計書:電卓の基本操作"]) == [tagged]
+
+
+def test_上書きするとタグも記録に合わせる(tmp_path: Path) -> None:
+    store = Store(tmp_path / "data")
+    tagged = _testcase(1)
+    store.save_testcase(tagged)
+
+    data = tagged.model_dump(mode="json", exclude_none=True)
+    data["testcase"]["tags"] = ["機能:減算"]
+    store.save_testcase(Record.model_validate(data))
+
+    assert store.list_testcases(tags=["機能:加算"]) == []
+    assert len(store.list_testcases(tags=["機能:減算"])) == 1
 
 
 def test_上書きしても並びは変わらない(tmp_path: Path) -> None:
