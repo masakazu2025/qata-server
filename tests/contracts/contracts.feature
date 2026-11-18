@@ -1,6 +1,6 @@
 # language: ja
-機能: 親の契約の検査
-  親の契約（../qata/contracts）が壊れていないことと、
+機能: 読む版の契約の検査
+  読む版の契約（qata-contracts/、親のタグから写したもの）が壊れていないことと、
   この server が契約から生成した型が契約と合っていることを確かめる（親の decisions.md の D22）。
 
   シナリオ: JSON Schema が draft 2020-12 の形式に合う

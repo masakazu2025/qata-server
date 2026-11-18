@@ -1,13 +1,23 @@
 """contracts_version.feature の手順。"""
 
 import io
+import json
 import shutil
+import subprocess
 import tarfile
 from pathlib import Path
 
 import pytest
+import sync_contracts
 from pytest_bdd import given, parsers, scenarios, then, when
-from sync_contracts import COPY_DIR, contracts_in, differences, newer_version, write
+from sync_contracts import (
+    COPY_DIR,
+    contracts_in,
+    differences,
+    newer_version,
+    old_version_notice,
+    write,
+)
 
 from qata_server import main
 from qata_server.application import contract_check
@@ -34,6 +44,39 @@ def then_newer(current: str, ls_remote: str, expected: str) -> None:
     assert newer_version(current, ls_remote) == (
         None if expected == "なし" else expected
     )
+
+
+@then(parsers.re("CI に出す一行は(?P<shape>警告|警告ではない)$"))
+def then_notice(current: str, ls_remote: str, shape: str) -> None:
+    line = old_version_notice(current, ls_remote)
+    assert line.startswith("::warning::") == (shape == "警告"), line
+
+
+ERRORS = {
+    "OSError": OSError("git がない"),
+    "CalledProcessError": subprocess.CalledProcessError(128, ["git"]),
+    "TimeoutExpired": subprocess.TimeoutExpired(["git"], 60),
+}
+
+
+@given(parsers.parse('タグを取ると "{error}" になる'))
+def given_list_tags_fails(monkeypatch: pytest.MonkeyPatch, error: str) -> None:
+    def fail() -> str:
+        raise ERRORS[error]
+
+    monkeypatch.setattr(sync_contracts, "list_tags", fail)
+
+
+@when("古い版の警告を出す")
+def when_warn(capsys: pytest.CaptureFixture[str]) -> None:
+    # capsys は、出す前に受け取っておく（受け取ったときから捕まえるため）
+    # 例外が漏れれば、ここでテストが落ちる
+    sync_contracts.warn_if_old("1.0.0")
+
+
+@then("出した一行は警告")
+def then_warned(capsys: pytest.CaptureFixture[str]) -> None:
+    assert capsys.readouterr().out.startswith("::warning::")
 
 
 @given("写しと同じ中身の、親のタグの tarball", target_fixture="tarball")
@@ -128,6 +171,14 @@ def contracts_dir(copy_dir: Path, monkeypatch: pytest.MonkeyPatch):
 @given(parsers.parse('写しから "{name}" を除く'))
 def given_removed(contracts_dir: Path, name: str) -> None:
     (contracts_dir / name).unlink()
+
+
+@given(parsers.parse('写しの "{name}" から定義 "{definition}" を除く'))
+def given_definition_removed(contracts_dir: Path, name: str, definition: str) -> None:
+    path = contracts_dir / name
+    schema = json.loads(path.read_text(encoding="utf-8"))
+    del schema["$defs"][definition]
+    path.write_text(json.dumps(schema), encoding="utf-8")
 
 
 def _build(tmp_path: Path) -> None:

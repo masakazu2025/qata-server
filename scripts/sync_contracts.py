@@ -118,28 +118,40 @@ def newer_version(current: str, ls_remote: str) -> str | None:
     return ".".join(str(n) for n in latest)
 
 
-def warn_if_old() -> None:
-    """親に新しい版があれば GitHub Actions の警告を出す。関門は落とさない。"""
-    current = read_version()
-    try:
-        ls_remote = subprocess.run(
-            ["git", "ls-remote", "--tags", PARENT_REPO, f"{TAG_PREFIX}*"],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        ).stdout
-    except (OSError, subprocess.SubprocessError) as e:
-        print(f"::warning::親の契約の版のタグが取れなかった：{e}")
-        return
+def list_tags() -> str:
+    """親の contracts-v* のタグを git ls-remote --tags の形で取る。"""
+    return subprocess.run(
+        ["git", "ls-remote", "--tags", PARENT_REPO, f"{TAG_PREFIX}*"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    ).stdout
+
+
+def old_version_notice(current: str, ls_remote: str) -> str:
+    """読む版と親のタグから、CI に出す一行。古ければ GitHub Actions の警告の形。"""
     newer = newer_version(current, ls_remote)
     if newer:
-        print(
+        return (
             f"::warning::読む契約の版 {current} は、親の最新 {newer} より古い。"
             f"scripts/sync_contracts.py {newer} で上げる"
         )
-    else:
-        print(f"読む契約の版 {current} は、親の最新")
+    return f"読む契約の版 {current} は、親の最新"
+
+
+def warn_if_old(current: str | None = None) -> None:
+    """親に新しい版があれば GitHub Actions の警告を出す。関門は落とさない。
+
+    タグが取れないとき（つながらないなど）も、警告だけにする。
+    """
+    current = current or read_version()
+    try:
+        ls_remote = list_tags()
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"::warning::親の契約の版のタグが取れなかった：{e}")
+        return
+    print(old_version_notice(current, ls_remote))
 
 
 def main() -> int:
