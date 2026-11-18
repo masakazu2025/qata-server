@@ -1,0 +1,14 @@
+{
+  "id": "run_1",
+  "testcase_id": "tc_1",
+  "status": "passed",
+  "started_at": "2026-11-08T10:06:00+09:00",
+  "finished_at": "2026-11-08T10:06:03+09:00",
+  "steps": [
+    { "index": 0, "step": { "type": "press_key", "part": "1" }, "status": "passed", "screenshot_id": "ss_1" },
+    { "index": 1, "step": { "type": "tap", "part": "足す" }, "status": "passed", "screenshot_id": "ss_2" },
+    { "index": 2, "step": { "type": "press_key", "part": "2" }, "status": "passed", "screenshot_id": "ss_3" },
+    { "index": 3, "step": { "type": "press_key", "part": "等号" }, "status": "passed", "screenshot_id": "ss_4" },
+    { "index": 4, "step": { "type": "expect_text", "part": "表示", "expected": "3" }, "status": "passed", "actual": "3", "screenshot_id": "ss_5" }
+  ]
+}

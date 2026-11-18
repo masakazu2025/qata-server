@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Testcase",
+  "description": "テストケース。AI が日本語の手順から作り、server に登録する。手順と確認事項を、実行する順に一つの列に並べる。部品は部品の辞書の名前で指す。",
+  "type": "object",
+  "properties": {
+    "app_id": { "$ref": "common.schema.json#/$defs/app_id" },
+    "title": {
+      "description": "テストケースの名前（日本語）。",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "instruction": {
+      "description": "元になった日本語の手順と確認事項。人がレビューするときに、生成されたステップと見比べる。",
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": { "$ref": "common.schema.json#/$defs/tags" },
+    "needs_review": {
+      "description": "実行の前に、人の確認を要るとするか（web のチェックボックス）。true なら、人が承認するまで実行できない。",
+      "type": "boolean"
+    },
+    "steps": {
+      "description": "実行する順に並べたステップ。確認事項（expect_text）を少なくとも一つ含む。",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" },
+      "contains": {
+        "type": "object",
+        "properties": { "type": { "const": "expect_text" } },
+        "required": ["type"]
+      }
+    }
+  },
+  "required": ["app_id", "title", "instruction", "needs_review", "steps"],
+  "additionalProperties": false,
+  "$defs": {
+    "step": {
+      "oneOf": [
+        { "$ref": "#/$defs/press_key" },
+        { "$ref": "#/$defs/tap" },
+        { "$ref": "#/$defs/expect_text" }
+      ],
+      "discriminator": { "propertyName": "type" }
+    },
+    "press_key": {
+      "description": "部品のキーを押す。部品が press_key に対応していること。",
+      "type": "object",
+      "properties": {
+        "type": { "const": "press_key" },
+        "part": { "$ref": "common.schema.json#/$defs/part_name" },
+        "note": { "$ref": "#/$defs/note" }
+      },
+      "required": ["type", "part"],
+      "additionalProperties": false
+    },
+    "tap": {
+      "description": "部品をタップする。部品が tap に対応していること。",
+      "type": "object",
+      "properties": {
+        "type": { "const": "tap" },
+        "part": { "$ref": "common.schema.json#/$defs/part_name" },
+        "note": { "$ref": "#/$defs/note" }
+      },
+      "required": ["type", "part"],
+      "additionalProperties": false
+    },
+    "expect_text": {
+      "description": "部品から読んだ値が expected と完全に一致することを確かめる。部品が expect_text に対応していること。PoC の確認事項はこの 1 種類だけ。",
+      "type": "object",
+      "properties": {
+        "type": { "const": "expect_text" },
+        "part": { "$ref": "common.schema.json#/$defs/part_name" },
+        "expected": { "type": "string" },
+        "note": { "$ref": "#/$defs/note" }
+      },
+      "required": ["type", "part", "expected"],
+      "additionalProperties": false
+    },
+    "note": {
+      "description": "このステップの説明（日本語）。人のレビューと結果の画面に出す。",
+      "type": "string",
+      "maxLength": 200
+    }
+  }
+}

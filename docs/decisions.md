@@ -4,6 +4,16 @@
 
 ---
 
+## S14. 読む契約の版を写して持ち、立ち上げたときにそろっていることを確かめる
+
+- 決めた人：AI　レビュー：未（人のレビューは要らない。形は親の D54 で決めたもの）
+- 形は親の [repos-and-contracts.md の「子の持ち方」](https://github.com/masakazu2025/qata/blob/main/.claude/rules/qata/repos-and-contracts.md#子の持ち方)のとおり。写す道具 `scripts/sync_contracts.py` は、runner のもの（qata-runner の R6）と同じ中身にした。写す・`--check`・`--warn-if-old` を一つに持つ。子の道具は子が持つ決まりなので、共通にはしない。
+- **契約の場所は設定にしない。** `ParentSettings`・`QATA_PARENT_DIR` を消した。読む場所は `qata-contracts/` の一つだけで、変えられると、読む版を固定した意味がなくなるため。場所は `contract_check.py` が持ち（`CONTRACTS_DIR`・`SCHEMAS_DIR`・`MCP_TOOLS`）、MCP の入口もそこから取る。
+- **`main.build` で、使う契約がそろっていることを確かめる（`contract_check.ensure_ready`）。** server は動いている間も契約を読む（テストケースと runner の結果の判定、部品の辞書と変換の結果の判定、MCP の道具の形）。使う契約から `$ref` をたどり、指す先（`common` も）がすべて引けることまで見る。`$ref` の解決は判定のときまで遅れ、ファイルが一つ欠けても最初の呼び出しまで気づけないため（runner の R6 と同じ理由）。Service を直に作るテストは通らないので、確かめは組み立ての入口に置いた。
+- 1.0.0 で型を作り直したが、変わらなかった（タグの型は qata-server#22 で、親の `main` から作っていた）。
+
+---
+
 ## S13. タグは、記録の JSON とは別に、テストケースとタグの組の表にも持つ
 
 - 決めた人：AI（タグの形と絞り込みの約束は親の D49・D50）　レビュー：未（人のレビューは要らない。あとで変えてよい）
@@ -39,10 +49,10 @@
 - 決めた人：AI　レビュー：未（人のレビューは要らない。PoC が終わったときにまとめて振り返る、親の D25）
 - 環境変数から読むのは `src/qata_server/settings.py` の pydantic-settings の型だけ。名前と既定値は前のまま。
   - `Settings`：立ち上げの設定（`QATA_DATA_DIR`・`QATA_RUNNER_URL`・`QATA_HOST`・`QATA_PORT`）
-  - `ParentSettings`：親の契約の場所（`QATA_PARENT_DIR`）
+  - `ParentSettings`：親の契約の場所（`QATA_PARENT_DIR`）。S14 で消した
   - 二つに分けたのは、契約を読むところが、関係のない立ち上げの設定の誤り（数でない `QATA_PORT` など）で巻き添えに落ちないようにするため（レビューの指摘）。
 - `main.py` の組み立て（`build`・`build_service`）は `Settings` を受け取る。立ち上げ（`serve`）が一度だけ `Settings()` を作る。
-- 親の契約の場所は、契約の判定（`contract_check.py`）と型の生成（`scripts/generate_contracts.py`）が、読み込んだときに `ParentSettings().parent_dir` から取る。判定の道具はプロセスの間使い回していて、受け取る形にすると Service や MCP まで通すことになり、いまは得がないため。
+- 親の契約の場所は、契約の判定（`contract_check.py`）と型の生成（`scripts/generate_contracts.py`）が、読み込んだときに `ParentSettings().parent_dir` から取る（S14 で、`qata-contracts/` を読む形に変えた）。判定の道具はプロセスの間使い回していて、受け取る形にすると Service や MCP まで通すことになり、いまは得がないため。
 - `settings.py` は依存の層で、契約の型と同じ一番下に置く。application からも読めるようにするため。
 - 空の環境変数は、置いていないものとして扱う（前の `QATA_PARENT_DIR` と同じ）。ほかの設定も、空なら既定値になる。数でない `QATA_PORT` は、立ち上げる前に誤りにする。
 - ほかに環境変数を読むところがないことは、テスト（`tests/settings.feature`）で確かめる。`environ`・`getenv` が出てきたら読むとみなし、子のプロセスに環境をそのまま渡す `{**os.environ}` の形だけを許す。
@@ -130,17 +140,17 @@
   - 規則の種類（kind）ごとの変換を `conversion.py` の `CONVERTERS` に持つ。いまは汎用の `key`（キーを押す）・`tap`（座標をタップする）・`uia`（UI Automation で読み、正規表現で値を取り出す）の三つ。内製のツールは、ここに種類を足して広げる。
   - 読み込むときに、規則の書き方と、変換の結果が runner への命令の契約（`runner-command.schema.json`）に合うかを確かめる。合わなければ server を立ち上げない。
 - 電卓の座標は仮の値（親の例と同じ）だった。本物の電卓で測り直した（S8）。
-- 親の契約は、実行のときにも `../qata/contracts/` から読む（S1 の判定のため。S2 と同じく、次の周回で直す）。そのため jsonschema を、開発のときだけでなく実行のときの依存にした。
+- 親の契約は、実行のときにも `../qata/contracts/` から読む（S1 の判定のため。S2 と同じく、次の周回で直す）。S14 で、読む版の写し `qata-contracts/` を読む形に直した。そのため jsonschema を、開発のときだけでなく実行のときの依存にした。
 
 ## S2. 契約の検査は pytest-bdd で書く
 
 - 決めた人：AI　レビュー：済（親を相対のパスで読むのは、次の周回で直す。親の ideas.md）
 - `tests/contracts/contracts.feature` に日本語の Gherkin で観点を書く。はじく例は、契約の例の一か所を変える・消す形で表に並べ、「なぜ」の列を付ける。
-- 親の契約は、作業フォルダで隣に並べた `../qata/` から読む。
+- 親の契約は、作業フォルダで隣に並べた `../qata/` から読む。S14 で、読む版の写し `qata-contracts/` を読む形に直した。
 
 ## S1. 型の生成のしかた
 
 - 決めた人：AI　レビュー：済
-- datamodel-code-generator で、`../qata/contracts/schemas/` から `src/qata_server/contracts/` に生成する。手順は `scripts/generate_contracts.py`。
+- datamodel-code-generator で、`../qata/contracts/schemas/`（S14 から `qata-contracts/schemas/`）から `src/qata_server/contracts/` に生成する。手順は `scripts/generate_contracts.py`。
 - 生成は、いつもリポジトリの外の一時フォルダで行ってから写す。生成先の ruff の設定で整形が変わり、「生成し直しても同じ」の検査が揺れないようにするため。生成物は ruff の対象から外す。
 - 生成した型は、JSON Schema の `contains`（確認事項を一つは含む）や `if`/`then` を表せない。そのため、外から来るデータ（AI・web からのテストケース、runner の結果、部品の辞書のファイル）は、まず jsonschema で親の JSON Schema に照らして判定し、合格したものだけを型に読み込む。型は判定ではなく、コードで扱うための読み込みに使う（タスクの 1 で作る）。

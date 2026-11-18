@@ -1,5 +1,5 @@
 # 関門（README の「関門」）を回す。通らないと main にマージできない（ブランチの保護）。
-# 親の契約を読むために、親のリポジトリを丸ごと取ってきて隣に置き、QATA_PARENT_DIR で指す。
+# 契約は、このリポジトリの qata-contracts/ にある読む版の写しを読む。親のリポジトリは取ってこない。
 name: CI
 
 on:
@@ -11,21 +11,14 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
-    env:
-      QATA_PARENT_DIR: ${{ github.workspace }}/parent
-    defaults:
-      run:
-        working-directory: qata-server
     steps:
       - uses: actions/checkout@v5
-        with:
-          path: qata-server
-      - uses: actions/checkout@v5
-        with:
-          repository: masakazu2025/qata
-          path: parent
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
+      # 写しを手で直していないか（読む版のタグから写し直して、差分がないこと）
+      - run: uv run python scripts/sync_contracts.py --check
+      # 読む版が親の最新より古ければ警告だけを出す。関門は落とさない
+      - run: uv run python scripts/sync_contracts.py --warn-if-old
       - run: uv run pytest
       - run: uv run ruff check
       - run: uv run ruff format --check

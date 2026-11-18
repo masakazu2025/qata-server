@@ -1,0 +1,13 @@
+{
+  "run_id": "run_1",
+  "status": "completed",
+  "started_at": "2026-11-08T10:06:00+09:00",
+  "finished_at": "2026-11-08T10:06:03+09:00",
+  "steps": [
+    { "index": 0, "status": "ok", "screenshot": { "media_type": "image/png", "data_base64": "iVBORw0KGgo=" } },
+    { "index": 1, "status": "ok", "screenshot": { "media_type": "image/png", "data_base64": "iVBORw0KGgo=" } },
+    { "index": 2, "status": "ok", "screenshot": { "media_type": "image/png", "data_base64": "iVBORw0KGgo=" } },
+    { "index": 3, "status": "ok", "screenshot": { "media_type": "image/png", "data_base64": "iVBORw0KGgo=" } },
+    { "index": 4, "status": "ok", "text": "表示は 3 です", "screenshot": { "media_type": "image/png", "data_base64": "iVBORw0KGgo=" } }
+  ]
+}

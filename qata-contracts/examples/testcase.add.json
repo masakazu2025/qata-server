@@ -1,0 +1,14 @@
+{
+  "app_id": "calculator",
+  "title": "1 + 2 の足し算",
+  "instruction": "電卓で 1 + 2 = を押して、表示が 3 になることを確かめる",
+  "tags": ["機能:加算", "設計書:電卓の基本操作"],
+  "needs_review": true,
+  "steps": [
+    { "type": "press_key", "part": "1" },
+    { "type": "tap", "part": "足す", "note": "+ のボタンをタップ" },
+    { "type": "press_key", "part": "2" },
+    { "type": "press_key", "part": "等号" },
+    { "type": "expect_text", "part": "表示", "expected": "3" }
+  ]
+}

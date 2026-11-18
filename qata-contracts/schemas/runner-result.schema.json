@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunnerResult",
+  "description": "runner から server への結果。ステップでエラーが起きたら、そこで止めて aborted を返す（残りのステップは steps に入れない）。起動やウィンドウ探しでつまずいたときは、steps を空にして error に理由を入れる。",
+  "type": "object",
+  "properties": {
+    "run_id": { "$ref": "common.schema.json#/$defs/id" },
+    "status": {
+      "description": "completed：すべてのステップを実行した。aborted：途中で止めた。",
+      "enum": ["completed", "aborted"]
+    },
+    "started_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "finished_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "error": { "$ref": "common.schema.json#/$defs/error" },
+    "steps": {
+      "description": "実行したステップの結果。命令の steps と同じ順。",
+      "type": "array",
+      "items": { "$ref": "#/$defs/step_result" }
+    }
+  },
+  "required": ["run_id", "status", "started_at", "finished_at", "steps"],
+  "if": { "properties": { "status": { "const": "aborted" } } },
+  "then": { "required": ["error"] },
+  "additionalProperties": false,
+  "$defs": {
+    "step_result": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "description": "命令の steps の中の位置（0 から）。",
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": { "enum": ["ok", "error"] },
+        "text": {
+          "description": "read_text で読んだ文字（加工しない）。read_text のときだけ。",
+          "type": "string"
+        },
+        "error": { "$ref": "common.schema.json#/$defs/error" },
+        "screenshot": { "$ref": "#/$defs/screenshot" }
+      },
+      "required": ["index", "status"],
+      "if": { "properties": { "status": { "const": "error" } } },
+      "then": { "required": ["error"] },
+      "else": { "required": ["screenshot"] },
+      "additionalProperties": false
+    },
+    "screenshot": {
+      "description": "ステップのあとに撮った、対象のウィンドウだけのスクショ。PNG を Base64 で埋め込む。",
+      "type": "object",
+      "properties": {
+        "media_type": { "const": "image/png" },
+        "data_base64": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "contentMediaType": "image/png",
+          "minLength": 1
+        }
+      },
+      "required": ["media_type", "data_base64"],
+      "additionalProperties": false
+    }
+  }
+}

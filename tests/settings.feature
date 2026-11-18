@@ -1,6 +1,6 @@
 # language: ja
 機能: 設定
-  設定は環境変数で渡す。読むのは settings.py の Settings（立ち上げ）と ParentSettings（親の契約の場所）だけで、ほかはその型を受け取る。
+  設定は環境変数で渡す。読むのは settings.py の Settings だけで、ほかはその型を受け取る。契約の場所は設定にしない（読む版の写しの qata-contracts/ を読む）。
 
   シナリオ: 環境変数がなければ、既定の値になる
     前提 qata の環境変数を置いていない
@@ -8,7 +8,6 @@
     かつ 設定の "runner_url" は "http://127.0.0.1:8001"
     かつ 設定の "host" は "127.0.0.1"
     かつ 設定の "port" は "8000"
-    かつ 親のリポジトリは、隣に並べた qata を指す
 
   シナリオ: 環境変数で、設定を変えられる
     前提 qata の環境変数を置いていない
@@ -16,17 +15,15 @@
     かつ 環境変数 "QATA_RUNNER_URL" を "http://runner.example:9001" にする
     かつ 環境変数 "QATA_HOST" を "0.0.0.0" にする
     かつ 環境変数 "QATA_PORT" を "9000" にする
-    かつ 環境変数 "QATA_PARENT_DIR" を "elsewhere/qata" にする
     ならば 設定の "data_dir" は "elsewhere/data"
     かつ 設定の "runner_url" は "http://runner.example:9001"
     かつ 設定の "host" は "0.0.0.0"
     かつ 設定の "port" は "9000"
-    かつ 親のリポジトリは "elsewhere/qata" を指す
 
   シナリオ: 空の環境変数は、置いていないものとして扱う
     前提 qata の環境変数を置いていない
-    かつ 環境変数 "QATA_PARENT_DIR" を "" にする
-    ならば 親のリポジトリは、隣に並べた qata を指す
+    かつ 環境変数 "QATA_DATA_DIR" を "" にする
+    ならば 設定の "data_dir" は "data"
 
   シナリオ: 数でないポートは、立ち上げる前にはじく
     前提 qata の環境変数を置いていない
