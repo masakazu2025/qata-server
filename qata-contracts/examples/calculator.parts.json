@@ -1,0 +1,13 @@
+{
+  "app_id": "calculator",
+  "name": "電卓",
+  "parts": {
+    "1": { "description": "数字の 1", "actions": ["press_key", "tap"] },
+    "2": { "description": "数字の 2", "actions": ["press_key", "tap"] },
+    "3": { "description": "数字の 3", "actions": ["press_key", "tap"] },
+    "足す": { "description": "足し算（+）", "actions": ["press_key", "tap"] },
+    "等号": { "description": "計算する（=）", "actions": ["press_key", "tap"] },
+    "クリア": { "description": "すべて消す（C）", "actions": ["press_key"] },
+    "表示": { "description": "計算の結果を出す表示欄", "actions": ["expect_text"] }
+  }
+}

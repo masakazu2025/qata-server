@@ -1,4 +1,4 @@
-"""外から来るデータを、親の契約（JSON Schema）に照らして判定する（S1）。
+"""外から来るデータを、読む版の契約（JSON Schema）に照らして判定する（S1）。
 
 生成した型は `contains` や `if`/`then` を表せないので、判定はここで行い、
 合格したものだけを型に読み込む。
@@ -8,18 +8,31 @@ import json
 from collections import defaultdict
 from collections.abc import Mapping
 from functools import cache
+from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
 
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
+from referencing.exceptions import Unresolvable
 from referencing.jsonschema import DRAFT202012
 
-from qata_server.settings import ParentSettings
+# 読む版の契約。リポジトリの直下の qata-contracts/ に、親のタグから写したもの（S14）。
+# 隣に並べた ../qata/ は読まない
+CONTRACTS_DIR = Path(__file__).resolve().parents[3] / "qata-contracts"
+SCHEMAS_DIR = CONTRACTS_DIR / "schemas"
+MCP_TOOLS = CONTRACTS_DIR / "mcp-tools.json"
 
-# 親の契約。親のリポジトリの場所は設定（QATA_PARENT_DIR）から取る。
-# 判定の道具はプロセスの間使い回すので、場所は読み込んだときに決める（S10）。
-SCHEMAS_DIR = ParentSettings().parent_dir / "contracts" / "schemas"
+# 立ち上げたときに確かめる契約。実行の間に、判定と MCP の道具の形に使うもの
+USED_CONTRACTS = [
+    SCHEMAS_DIR / "testcase.schema.json",
+    SCHEMAS_DIR / "part-dictionary.schema.json",
+    SCHEMAS_DIR / "runner-command.schema.json",
+    SCHEMAS_DIR / "runner-result.schema.json",
+    SCHEMAS_DIR / "server.schema.json",
+    MCP_TOOLS,
+]
 
 
 @cache
@@ -35,8 +48,51 @@ def registry() -> Registry:
         for path in sorted(SCHEMAS_DIR.glob("*.schema.json"))
     ]
     if not resources:
-        raise FileNotFoundError(f"親の契約が見つからない：{SCHEMAS_DIR}")
+        raise FileNotFoundError(f"読む版の契約が見つからない：{SCHEMAS_DIR}")
     return Registry().with_resources(resources)
+
+
+def clear_cache() -> None:
+    """読み込んだ契約を捨てる。テストで読む場所を差し替えるときに使う。"""
+    registry.cache_clear()
+    _validator.cache_clear()
+
+
+def _refs(node: Any) -> list[str]:
+    if isinstance(node, dict):
+        found = [node["$ref"]] if isinstance(node.get("$ref"), str) else []
+        return found + [r for v in node.values() for r in _refs(v)]
+    if isinstance(node, list):
+        return [r for v in node for r in _refs(v)]
+    return []
+
+
+def ensure_ready() -> None:
+    """使う契約がそろっていることを確かめる。そろっていなければ FileNotFoundError。
+
+    立ち上げたときに呼び、最初の呼び出しが来てから気づくことがないようにする。
+    $ref の解決は判定のときまで遅れるので、使う契約から $ref をたどり、
+    指す先（ほかのファイルも）がすべて引けることを確かめる。
+    """
+    resolver = registry().resolver()
+    pending: list[str] = []
+    for path in USED_CONTRACTS:
+        if not path.is_file():
+            raise FileNotFoundError(f"読む版の契約が見つからない：{path}")
+        contents = json.loads(path.read_text(encoding="utf-8"))
+        pending += [urljoin(path.as_uri(), ref) for ref in _refs(contents)]
+    seen: set[str] = set()
+    while pending:
+        uri = pending.pop()
+        if uri in seen:
+            continue
+        seen.add(uri)
+        try:
+            resolved = resolver.lookup(uri)
+        except Unresolvable as e:
+            raise FileNotFoundError(f"読む版の契約で、指す先が引けない：{uri}") from e
+        base = uri.partition("#")[0]
+        pending += [urljoin(base, ref) for ref in _refs(resolved.contents)]
 
 
 @cache

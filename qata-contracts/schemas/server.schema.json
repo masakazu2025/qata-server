@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Server",
+  "description": "server の API（openapi.yaml）と MCP の道具（mcp-tools.json）の両方で使う形。",
+  "$defs": {
+    "app_summary": {
+      "description": "登録されているアプリ（部品の辞書）の一覧の一行。",
+      "type": "object",
+      "properties": {
+        "app_id": { "$ref": "common.schema.json#/$defs/app_id" },
+        "name": { "type": "string" }
+      },
+      "required": ["app_id", "name"],
+      "additionalProperties": false
+    },
+    "validation_error": {
+      "description": "テストケースの検証で見つかった問題一つ。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "schema：形式が契約に合わない。unknown_app：部品の辞書がない。unknown_part：辞書にない部品。action_not_supported：その部品が、ステップのアクションに対応していない。",
+          "enum": [
+            "schema",
+            "unknown_app",
+            "unknown_part",
+            "action_not_supported"
+          ]
+        },
+        "path": {
+          "description": "問題のある場所。テストケースの中の JSON Pointer（例：/steps/2/part）。",
+          "type": "string"
+        },
+        "message": { "description": "人と AI が読む説明（日本語）。", "type": "string" }
+      },
+      "required": ["code", "path", "message"],
+      "additionalProperties": false
+    },
+    "validation_result": {
+      "type": "object",
+      "properties": {
+        "valid": { "type": "boolean" },
+        "errors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_error" }
+        }
+      },
+      "required": ["valid", "errors"],
+      "additionalProperties": false
+    },
+    "review_status": {
+      "description": "not_required：確認は要らない。pending：人の確認待ち（実行できない）。approved：人が承認した。",
+      "enum": ["not_required", "pending", "approved"]
+    },
+    "testcase_record": {
+      "description": "登録されたテストケース。",
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "testcase": { "$ref": "testcase.schema.json" },
+        "review_status": { "$ref": "#/$defs/review_status" },
+        "created_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+        "updated_at": { "$ref": "common.schema.json#/$defs/timestamp" }
+      },
+      "required": ["id", "testcase", "review_status", "created_at", "updated_at"],
+      "additionalProperties": false
+    },
+    "run": {
+      "description": "テストケースを一回実行した結果。",
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "testcase_id": { "$ref": "common.schema.json#/$defs/id" },
+        "status": {
+          "description": "passed：確認事項がすべて合った。failed：合わない確認事項があった。error：途中で実行できなくなった。",
+          "enum": ["passed", "failed", "error"]
+        },
+        "started_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+        "finished_at": { "$ref": "common.schema.json#/$defs/timestamp" },
+        "error": { "$ref": "common.schema.json#/$defs/error" },
+        "steps": {
+          "description": "テストケースの steps と同じ数・同じ順。",
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_step" }
+        }
+      },
+      "required": ["id", "testcase_id", "status", "started_at", "finished_at", "steps"],
+      "if": { "properties": { "status": { "const": "error" } } },
+      "then": { "required": ["error"] },
+      "additionalProperties": false
+    },
+    "run_step": {
+      "type": "object",
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "step": {
+          "description": "実行したときのテストケースのステップの写し。",
+          "$ref": "testcase.schema.json#/$defs/step"
+        },
+        "status": {
+          "description": "passed：操作が済んだ、または確認事項が合った。failed：確認事項が合わない。error：このステップで実行できなくなった。skipped：前のエラーで実行しなかった。",
+          "enum": ["passed", "failed", "error", "skipped"]
+        },
+        "actual": {
+          "description": "expect_text で取り出した値。expect_text のときだけ。",
+          "type": "string"
+        },
+        "message": { "description": "failed・error の説明（日本語）。", "type": "string" },
+        "screenshot_id": {
+          "description": "ステップのあとのスクショ。GET /screenshots/{screenshot_id} で PNG を取る。",
+          "$ref": "common.schema.json#/$defs/id"
+        }
+      },
+      "required": ["index", "step", "status"],
+      "additionalProperties": false
+    },
+    "register_result": {
+      "description": "テストケースを登録した結果。検証を通らなければ登録しない。",
+      "type": "object",
+      "properties": {
+        "registered": { "type": "boolean" },
+        "testcase_record": { "$ref": "#/$defs/testcase_record" },
+        "errors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_error" }
+        }
+      },
+      "required": ["registered", "errors"],
+      "if": { "properties": { "registered": { "const": true } } },
+      "then": { "required": ["testcase_record"] },
+      "additionalProperties": false
+    },
+    "error_response": {
+      "description": "API のエラーの本文。",
+      "type": "object",
+      "properties": {
+        "error": { "$ref": "common.schema.json#/$defs/error" }
+      },
+      "required": ["error"],
+      "additionalProperties": false
+    }
+  }
+}

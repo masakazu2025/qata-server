@@ -1,4 +1,4 @@
-"""親の契約（JSON Schema）から pydantic の型を生成する。
+"""読む版の契約（qata-contracts/ の JSON Schema）から pydantic の型を生成する。
 
 使い方：uv run python scripts/generate_contracts.py
 
@@ -13,12 +13,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from qata_server.settings import ParentSettings
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# 親のリポジトリ。server の設定（QATA_PARENT_DIR）と同じ場所を見る
-PARENT_DIR = ParentSettings().parent_dir
-CONTRACTS_DIR = PARENT_DIR / "contracts"
+# 読む版の契約。親のタグから写したもの（S14）。隣に並べた ../qata/ は読まない
+CONTRACTS_DIR = REPO_ROOT / "qata-contracts"
 SCHEMAS_DIR = CONTRACTS_DIR / "schemas"
 GENERATED_DIR = REPO_ROOT / "src" / "qata_server" / "contracts"
 

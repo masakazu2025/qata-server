@@ -17,11 +17,9 @@ from mcp.server.lowlevel import Server
 from pydantic import BaseModel
 
 from qata_server.application import Service, ServiceError, internal_message
-from qata_server.application.contract_check import SCHEMAS_DIR, pointer, registry
+from qata_server.application.contract_check import MCP_TOOLS, pointer, registry
 
 _logger = logging.getLogger(__name__)
-
-MCP_TOOLS = SCHEMAS_DIR.parent / "mcp-tools.json"
 
 INSTRUCTIONS = (
     "Windows のアプリのテストケースを作り、登録して実行する道具。"

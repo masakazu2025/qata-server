@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from qata_server.application import Service, Store, load_apps
+from qata_server.application import Service, Store, contract_check, load_apps
 from qata_server.mcp_server import create_server
 from qata_server.rest import create_app
 from qata_server.runner_http import HttpRunner
@@ -26,6 +26,8 @@ def build_service(settings: Settings) -> Service:
 
 
 def build(settings: Settings) -> FastAPI:
+    # 読む版の契約がそろっていなければ、ここで落ちる（最初の呼び出しを待たない）
+    contract_check.ensure_ready()
     service = build_service(settings)
     app = create_app(service)
     mcp = create_server(service)

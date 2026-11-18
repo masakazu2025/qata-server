@@ -1,0 +1,113 @@
+{
+  "description": "server が MCP で出す道具。name・description・inputSchema・outputSchema は MCP の Tool の定義にそのまま使う。$ref は schemas/ の JSON Schema を指す（server が展開して出す）。道具の結果は structuredContent に outputSchema の形で入れる。失敗したら isError の結果にし、文字の中身を schemas/server.schema.json の error_response の形にする。server の中で想定していない誤りが起きたときの code は internal_error。",
+  "tools": [
+    {
+      "name": "list_apps",
+      "description": "テストできるアプリ（部品の辞書があるもの）の一覧を返す。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": { "$ref": "schemas/server.schema.json#/$defs/app_summary" }
+          }
+        },
+        "required": ["apps"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_part_dictionary",
+      "description": "アプリの部品の辞書を返す。テストケースのステップは、ここにある部品の名前で書く。各ステップには、そのアクションを actions に持つ部品を使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app_id": { "$ref": "schemas/common.schema.json#/$defs/app_id" }
+        },
+        "required": ["app_id"],
+        "additionalProperties": false
+      },
+      "outputSchema": { "$ref": "schemas/part-dictionary.schema.json" }
+    },
+    {
+      "name": "validate_testcase",
+      "description": "テストケースを登録せずに検証する。形式と、部品の辞書との照合を確かめる。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "testcase": { "$ref": "schemas/testcase.schema.json" }
+        },
+        "required": ["testcase"],
+        "additionalProperties": false
+      },
+      "outputSchema": { "$ref": "schemas/server.schema.json#/$defs/validation_result" }
+    },
+    {
+      "name": "register_testcase",
+      "description": "テストケースを検証して登録する。検証を通らなければ登録せず、errors を返す。errors を見て直し、もう一度呼ぶ。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "testcase": { "$ref": "schemas/testcase.schema.json" }
+        },
+        "required": ["testcase"],
+        "additionalProperties": false
+      },
+      "outputSchema": { "$ref": "schemas/server.schema.json#/$defs/register_result" }
+    },
+    {
+      "name": "list_testcases",
+      "description": "登録されたテストケースの一覧を新しい順に返す。tags を指定すると、そのタグを全部持つものだけを返す（文字の完全な一致）。tags を省いたときと空の並びのときは、タグで絞り込まない。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "app_id": { "$ref": "schemas/common.schema.json#/$defs/app_id" },
+          "tags": { "$ref": "schemas/common.schema.json#/$defs/tag_filter" }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "testcases": {
+            "type": "array",
+            "items": { "$ref": "schemas/server.schema.json#/$defs/testcase_record" }
+          }
+        },
+        "required": ["testcases"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run_testcase",
+      "description": "登録されたテストケースを実行し、終わるまで待って結果を返す。人の確認待ち（review_status が pending）のものと、登録のあとで部品の辞書が変わり、いまの辞書に合わなくなったものは実行できない。runner がほかの実行の最中なら、実行せずに runner_busy のエラーを返す（結果は残さない）。終わってからもう一度呼ぶ。スクショは web で見る。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "testcase_id": { "$ref": "schemas/common.schema.json#/$defs/id" }
+        },
+        "required": ["testcase_id"],
+        "additionalProperties": false
+      },
+      "outputSchema": { "$ref": "schemas/server.schema.json#/$defs/run" }
+    },
+    {
+      "name": "get_run",
+      "description": "実行の結果一つを返す。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "run_id": { "$ref": "schemas/common.schema.json#/$defs/id" }
+        },
+        "required": ["run_id"],
+        "additionalProperties": false
+      },
+      "outputSchema": { "$ref": "schemas/server.schema.json#/$defs/run" }
+    }
+  ]
+}

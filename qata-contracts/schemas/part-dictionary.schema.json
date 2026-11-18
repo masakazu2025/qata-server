@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PartDictionary",
+  "description": "画面の部品の辞書のうち、AI と web に見せる部分。部品の名前と、その部品に使えるアクションだけを持つ。名前を具体的な操作（キー・座標・読み取りの場所など）に変える規則は server の中の変換の枠に置き、契約には入れない（decisions.md の D14）。",
+  "type": "object",
+  "properties": {
+    "app_id": { "$ref": "common.schema.json#/$defs/app_id" },
+    "name": {
+      "description": "アプリの表示名。",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["電卓"]
+    },
+    "parts": {
+      "description": "部品の名前をキーにした部品の一覧。名前が重ならないように、配列ではなくオブジェクトにする。",
+      "type": "object",
+      "propertyNames": { "$ref": "common.schema.json#/$defs/part_name" },
+      "additionalProperties": { "$ref": "#/$defs/part" },
+      "minProperties": 1
+    }
+  },
+  "required": ["app_id", "name", "parts"],
+  "additionalProperties": false,
+  "$defs": {
+    "part": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "部品の説明（日本語）。AI がテストケースを作るときの手がかりにする。",
+          "type": "string"
+        },
+        "actions": {
+          "description": "この部品に使えるアクション。テストケースのステップの type と同じ名前。",
+          "type": "array",
+          "items": { "enum": ["press_key", "tap", "expect_text"] },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": ["actions"],
+      "additionalProperties": false
+    }
+  }
+}

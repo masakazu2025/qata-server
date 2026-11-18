@@ -1,0 +1,282 @@
+openapi: 3.1.0
+info:
+  title: qata-server API
+  version: 0.1.0
+  description: >-
+    web が使う server の REST API。形は schemas/ の JSON Schema を参照する。
+    この文書が正で、web はここから型を生成する。server は、FastAPI が出す OpenAPI がこれと合うことをテストで確かめる。
+paths:
+  /apps:
+    get:
+      operationId: listApps
+      summary: 登録されているアプリ（部品の辞書）の一覧
+      responses:
+        "200":
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/server.schema.json#/$defs/app_summary"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /apps/{app_id}/parts:
+    get:
+      operationId: getPartDictionary
+      summary: アプリの部品の辞書
+      parameters:
+        - $ref: "#/components/parameters/app_id"
+      responses:
+        "200":
+          description: 部品の辞書
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/part-dictionary.schema.json"
+        "404":
+          $ref: "#/components/responses/not_found"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /testcases/validate:
+    post:
+      operationId: validateTestcase
+      summary: テストケースを登録せずに検証する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/testcase.schema.json"
+      responses:
+        "200":
+          description: 検証の結果（問題があっても 200 で返す）
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/validation_result"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /testcases:
+    get:
+      operationId: listTestcases
+      summary: 登録されたテストケースの一覧（新しい順）
+      parameters:
+        - name: app_id
+          in: query
+          required: false
+          schema:
+            $ref: "schemas/common.schema.json#/$defs/app_id"
+        - name: tag
+          in: query
+          required: false
+          description: 指定したタグを全部持つものだけを返す。タグ一つごとに繰り返す（例：?tag=機能:加算&tag=設計書:電卓の基本操作）。一致は文字の完全な一致。同じタグの重なりは一つと見なす。指定しなければ、タグで絞り込まない。
+          style: form
+          explode: true
+          schema:
+            $ref: "schemas/common.schema.json#/$defs/tag_filter"
+      responses:
+        "200":
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/server.schema.json#/$defs/testcase_record"
+        "500":
+          $ref: "#/components/responses/internal_error"
+    post:
+      operationId: registerTestcase
+      summary: テストケースを検証して登録する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/testcase.schema.json"
+      responses:
+        "201":
+          description: 登録した
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/testcase_record"
+        "422":
+          description: 検証を通らなかった（登録しない）
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/validation_result"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /testcases/{testcase_id}:
+    parameters:
+      - $ref: "#/components/parameters/testcase_id"
+    get:
+      operationId: getTestcase
+      summary: テストケース一つ
+      responses:
+        "200":
+          description: テストケース
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/testcase_record"
+        "404":
+          $ref: "#/components/responses/not_found"
+        "500":
+          $ref: "#/components/responses/internal_error"
+    delete:
+      operationId: deleteTestcase
+      summary: テストケースを消す（実行の結果は残す）
+      responses:
+        "204":
+          description: 消した
+        "404":
+          $ref: "#/components/responses/not_found"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /testcases/{testcase_id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/testcase_id"
+    post:
+      operationId: approveTestcase
+      summary: 人がテストケースを承認する（review_status を approved にする）
+      responses:
+        "200":
+          description: 承認した
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/testcase_record"
+        "404":
+          $ref: "#/components/responses/not_found"
+        "409":
+          description: 確認の要らないテストケースだった（review_status が not_required）
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/error_response"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /testcases/{testcase_id}/runs:
+    parameters:
+      - $ref: "#/components/parameters/testcase_id"
+    post:
+      operationId: runTestcase
+      summary: テストケースを実行する。実行が終わるまで待って結果を返す
+      responses:
+        "201":
+          description: 実行した（結果が failed・error でも 201）
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/run"
+        "404":
+          $ref: "#/components/responses/not_found"
+        "409":
+          description: いまは実行できない。人の確認待ち（review_status が pending、error.code は review_pending）か、登録のあとで部品の辞書が変わり、いまの辞書に合わない（error.code は testcase_out_of_date）か、runner がほかの実行の最中（error.code は runner_busy。実行の結果は残さない）
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/error_response"
+        "502":
+          description: runner に届かない
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/error_response"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /runs:
+    get:
+      operationId: listRuns
+      summary: 実行の結果の一覧（新しい順）
+      parameters:
+        - name: testcase_id
+          in: query
+          required: false
+          schema:
+            $ref: "schemas/common.schema.json#/$defs/id"
+      responses:
+        "200":
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/server.schema.json#/$defs/run"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /runs/{run_id}:
+    get:
+      operationId: getRun
+      summary: 実行の結果一つ
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            $ref: "schemas/common.schema.json#/$defs/id"
+      responses:
+        "200":
+          description: 実行の結果
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/server.schema.json#/$defs/run"
+        "404":
+          $ref: "#/components/responses/not_found"
+        "500":
+          $ref: "#/components/responses/internal_error"
+  /screenshots/{screenshot_id}:
+    get:
+      operationId: getScreenshot
+      summary: スクショの PNG
+      parameters:
+        - name: screenshot_id
+          in: path
+          required: true
+          schema:
+            $ref: "schemas/common.schema.json#/$defs/id"
+      responses:
+        "200":
+          description: PNG
+          content:
+            image/png:
+              schema:
+                type: string
+                contentMediaType: image/png
+        "404":
+          $ref: "#/components/responses/not_found"
+        "500":
+          $ref: "#/components/responses/internal_error"
+components:
+  parameters:
+    app_id:
+      name: app_id
+      in: path
+      required: true
+      schema:
+        $ref: "schemas/common.schema.json#/$defs/app_id"
+    testcase_id:
+      name: testcase_id
+      in: path
+      required: true
+      schema:
+        $ref: "schemas/common.schema.json#/$defs/id"
+  responses:
+    not_found:
+      description: 見つからない
+      content:
+        application/json:
+          schema:
+            $ref: "schemas/server.schema.json#/$defs/error_response"
+    internal_error:
+      description: server の中で想定していない誤りが起きた（error.code は internal_error）
+      content:
+        application/json:
+          schema:
+            $ref: "schemas/server.schema.json#/$defs/error_response"

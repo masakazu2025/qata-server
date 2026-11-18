@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from qata_server import main
-from qata_server.settings import ParentSettings, Settings
+from qata_server.settings import Settings
 
 scenarios("settings.feature")
 
@@ -50,16 +50,6 @@ def setting_is(field: str, expected: str) -> None:
         assert value == Path(expected)
     else:
         assert str(value) == expected
-
-
-@then("親のリポジトリは、隣に並べた qata を指す")
-def parent_is_sibling() -> None:
-    assert ParentSettings().parent_dir == ROOT.parent / "qata"
-
-
-@then(parsers.parse('親のリポジトリは "{expected}" を指す'))
-def parent_is(expected: str) -> None:
-    assert ParentSettings().parent_dir == Path(expected)
 
 
 @then("契約の判定を読み込み直しても、誤りにならない")
