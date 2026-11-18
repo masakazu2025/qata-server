@@ -10,6 +10,7 @@
 - 形は親の [repos-and-contracts.md の「子の持ち方」](https://github.com/masakazu2025/qata/blob/main/.claude/rules/qata/repos-and-contracts.md#子の持ち方)のとおり。写す道具 `scripts/sync_contracts.py` は、runner のもの（qata-runner の R6）と同じ中身にした。写す・`--check`・`--warn-if-old` を一つに持つ。子の道具は子が持つ決まりなので、共通にはしない。
 - **契約の場所は設定にしない。** `ParentSettings`・`QATA_PARENT_DIR` を消した。読む場所は `qata-contracts/` の一つだけで、変えられると、読む版を固定した意味がなくなるため。場所は `contract_check.py` が持ち（`CONTRACTS_DIR`・`SCHEMAS_DIR`・`MCP_TOOLS`）、MCP の入口もそこから取る。
 - **`main.build` で、使う契約がそろっていることを確かめる（`contract_check.ensure_ready`）。** server は動いている間も契約を読む（テストケースと runner の結果の判定、部品の辞書と変換の結果の判定、MCP の道具の形）。使う契約から `$ref` をたどり、指す先（`common` も）がすべて引けることまで見る。`$ref` の解決は判定のときまで遅れ、ファイルが一つ欠けても最初の呼び出しまで気づけないため（runner の R6 と同じ理由）。Service を直に作るテストは通らないので、確かめは組み立ての入口に置いた。
+- **`--warn-if-old` は、タグを取る（`list_tags`）・出す一行を作る（`old_version_notice`）・出す（`warn_if_old`）に分けた。** 警告の形と、タグが取れないときに落ちないことを、ネットにつながずにテストで確かめるため（reviewer の指摘。runner は版を比べる関数だけをテストしている）。
 - 1.0.0 で型を作り直したが、変わらなかった（タグの型は qata-server#22 で、親の `main` から作っていた）。
 
 ---
