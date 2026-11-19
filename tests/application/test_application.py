@@ -6,9 +6,10 @@ from typing import Any
 
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
-from support import FakeRunner, load_example, png_for
+from support import FakeRunner, load_example, png_for, remove_part_from
 
 from qata_server.application import (
+    App,
     AppConfigError,
     NotFound,
     Service,
@@ -33,8 +34,14 @@ def store(tmp_path: Path) -> Store:
 
 
 @pytest.fixture
-def service(store: Store, runner: FakeRunner) -> Service:
-    return Service(load_apps(), store, runner)
+def apps() -> dict[str, App]:
+    """Service が持つアプリの設定。辞書が変わる場面では、手順で書き換える。"""
+    return load_apps()
+
+
+@pytest.fixture
+def service(apps: dict[str, App], store: Store, runner: FakeRunner) -> Service:
+    return Service(apps, store, runner)
 
 
 @pytest.fixture
@@ -281,14 +288,14 @@ def runner_launch_fails(runner: FakeRunner) -> None:
     runner.mode = "launch_failed"
 
 
-@given("runner は契約に合わない結果を返す")
-def runner_broken(runner: FakeRunner) -> None:
-    runner.mode = "broken"
+@given(parsers.parse('runner は結果を "{breakage}" にして返す'))
+def runner_broken(runner: FakeRunner, breakage: str) -> None:
+    runner.breakage = breakage
 
 
-@given("runner はスクショのデータに ASCII でない文字を入れて返す")
-def runner_non_ascii_screenshot(runner: FakeRunner) -> None:
-    runner.screenshot_data = "スクショ"
+@when(parsers.parse('部品の辞書から部品 "{part}" を外す'))
+def remove_part(apps: dict[str, App], part: str) -> None:
+    remove_part_from(apps, "calculator", part)
 
 
 @given("runner に届かない")
@@ -358,6 +365,16 @@ def screenshots_saved(service: Service, ctx) -> None:
         assert step.screenshot_id is not None
         png = service.get_screenshot(step.screenshot_id.root)
         assert png == png_for(prepare + step.index)
+
+
+@then(parsers.parse('実行のエラーの説明に "{text}" とある'))
+def run_error_mentions(ctx, text: str) -> None:
+    assert text in ctx["run"].error.message, dump(ctx["run"])
+
+
+@then("runner に命令を送っていない")
+def no_command_sent(runner: FakeRunner) -> None:
+    assert runner.commands == []
 
 
 @then(parsers.parse('実行のエラーの説明は "{prefix}" で始まる'))
