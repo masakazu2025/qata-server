@@ -11,9 +11,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from generate_contracts import CONTRACTS_DIR
 from pytest_bdd import given, parsers, scenarios, then, when
-from support import FakeRunner, load_example
+from support import FakeRunner, load_example, remove_part_from
 
 from qata_server.application import (
+    App,
     RunnerBusy,
     RunnerUnavailable,
     Service,
@@ -49,8 +50,14 @@ def runner() -> FakeRunner:
 
 
 @pytest.fixture
-def client(tmp_path: Path, runner: FakeRunner) -> TestClient:
-    service = Service(load_apps(), Store(tmp_path / "data"), runner)
+def apps() -> dict[str, App]:
+    """Service が持つアプリの設定。辞書が変わる場面では、手順で書き換える。"""
+    return load_apps()
+
+
+@pytest.fixture
+def client(tmp_path: Path, apps: dict[str, App], runner: FakeRunner) -> TestClient:
+    service = Service(apps, Store(tmp_path / "data"), runner)
     # 想定していない誤りの応答を見るため、例外をテストに投げ直させない
     return TestClient(create_app(service), raise_server_exceptions=False)
 
@@ -226,6 +233,16 @@ def runner_unreachable(runner: FakeRunner) -> None:
 @given("server の中で想定していない誤りが起きる")
 def runner_crashes(runner: FakeRunner) -> None:
     runner.mode = "crash"
+
+
+@when(parsers.parse('部品の辞書から部品 "{part}" を外す'))
+def remove_part(apps: dict[str, App], part: str) -> None:
+    remove_part_from(apps, "calculator", part)
+
+
+@then("runner に命令を送っていない")
+def no_command_sent(runner: FakeRunner) -> None:
+    assert runner.commands == []
 
 
 @given("runner はほかの実行の最中")

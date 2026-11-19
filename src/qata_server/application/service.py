@@ -270,6 +270,13 @@ class Service:
                 f"completed なのに、ステップが {len(indexes)} 個しかない"
                 f"（命令は {step_count} 個）"
             )
+        # runner はエラーが起きたらそこで止める。決まりが守られていないと、
+        # 前準備や途中のエラーが隠れて合格に見える
+        errors = [s["index"] for s in raw["steps"] if s["status"] == "error"]
+        if errors and errors[0] != indexes[-1]:
+            return f"error のあとにもステップがある（error は {errors[0]} 番目）"
+        if raw["status"] == "completed" and errors:
+            return "completed なのに、error のステップがある"
         for s in raw["steps"]:
             if "screenshot" in s:
                 try:
